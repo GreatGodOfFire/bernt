@@ -62,7 +62,7 @@ const fn generate_moves() -> [u64; 64] {
             }
         }
 
-        attacks[i] = attack as u64;
+        attacks[i] = attack;
         i += 1;
     }
 

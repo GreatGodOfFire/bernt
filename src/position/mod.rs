@@ -164,11 +164,11 @@ impl Position {
         let mut mailbox = [Piece::EMPTY; 64];
         // let en_passant: i8,
 
-        let parts = fen.split(" ").collect::<Vec<_>>();
+        let parts = fen.split(' ').collect::<Vec<_>>();
         if parts.len() != 6 {
             return None;
         }
-        let ranks = parts[0].split("/");
+        let ranks = parts[0].split('/');
         for (i, rank) in ranks.enumerate() {
             let i = 7 - i;
             if rank == "8" {
@@ -205,7 +205,7 @@ impl Position {
                         };
 
                         let piece = Piece { ty, color };
-                        let square = i as usize * 8 + j as usize;
+                        let square = i * 8 + j as usize;
                         mailbox[square] = piece;
                         bitboards[piece] |= 1 << square;
 
@@ -251,8 +251,8 @@ impl Position {
                 if chars.len() != 2 {
                     return None;
                 }
-                let file = chars[0] as u8 - 'a' as u8;
-                let rank = chars[1] as u8 - '1' as u8;
+                let file = chars[0] as u8 - b'a';
+                let rank = chars[1] as u8 - b'1';
 
                 if file > 7 || (rank != 2 && rank != 5) {
                     return None;

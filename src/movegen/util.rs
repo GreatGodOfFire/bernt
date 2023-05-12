@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 pub const FILE_A: u64 = 0x101010101010101;
 pub const FILE_B: u64 = 0x202020202020202;
 pub const FILE_C: u64 = 0x404040404040404;

@@ -75,11 +75,7 @@ impl std::fmt::Debug for Move {
 fn format_square(sq: u8) -> String {
     let file = sq % 8;
     let rank = sq / 8;
-    format!(
-        "{}{}",
-        (file + 'a' as u8) as char,
-        (rank + '1' as u8) as char
-    )
+    format!("{}{}", (file + b'a') as char, (rank + b'1') as char)
 }
 
 // inspired by: https://www.chessprogramming.org/Encoding_Moves#From-To_Based
@@ -132,13 +128,13 @@ pub fn perft(position: &Position, depth: u8) -> PerftResult {
                 .filter(|(_, p)| {
                     !is_attacking(
                         p.bitboards[!p.to_move][King].trailing_zeros() as u8,
-                        &p,
+                        p,
                         p.to_move,
                     )
                 })
                 .collect();
 
-            if positions.len() == 0 {
+            if positions.is_empty() {
                 return PerftResult { all: 1, divided };
             }
 
@@ -171,13 +167,13 @@ fn _perft(position: &Position, depth: u8) -> u64 {
                 .filter(|p| {
                     !is_attacking(
                         p.bitboards[!p.to_move][King].trailing_zeros() as u8,
-                        &p,
+                        p,
                         p.to_move,
                     )
                 })
                 .collect();
 
-            if positions.len() == 0 {
+            if positions.is_empty() {
                 return 0;
             }
 
@@ -217,7 +213,8 @@ pub fn is_attacking(square: u8, position: &Position, to_move: PieceColor) -> boo
     if (1 << square) & lookup_king(position.bitboards[!to_move][King].trailing_zeros() as u8) != 0 {
         return true;
     }
-    return false;
+
+    false
 }
 
 pub fn count_checking(position: &Position) -> u32 {
@@ -327,7 +324,7 @@ fn pseudo_legal_movegen(position: &Position) -> Moves {
     pawn_attacks(player[Pawn], to_move, !opponent[Empty], &mut moves);
     en_passant(player[Pawn], to_move, position.en_passant, &mut moves);
 
-    if moves.len() == 0 {
+    if moves.is_empty() {
         Moves::Stalemate
     } else {
         Moves::PseudoLegalMoves(moves)

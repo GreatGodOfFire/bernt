@@ -1,4 +1,4 @@
-use bernt::{position::Position, movegen::perft};
+use bernt::{movegen::perft, position::Position};
 
 #[test]
 fn startpos_0() {

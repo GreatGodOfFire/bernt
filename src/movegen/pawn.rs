@@ -1,4 +1,4 @@
-use crate::{movegen::bitboard::print_bitboard, position::piece::PieceColor};
+use crate::position::piece::PieceColor;
 
 use super::{
     bitboard::BitIter,

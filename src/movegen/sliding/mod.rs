@@ -1,9 +1,6 @@
 use self::magic::{BISHOP_ATTACKS, BISHOP_MAGICS, ROOK_ATTACKS, ROOK_MAGICS};
 
-use super::{
-    bitboard::{print_bitboard, BitIter},
-    Code, Move,
-};
+use super::{bitboard::BitIter, Code, Move};
 
 mod magic;
 
@@ -29,14 +26,13 @@ pub fn rook_moves(rooks: u64, player_pieces: u64, opponent_pieces: u64, out: &mu
 
 pub fn single_rook_moves(rook: u8, player_pieces: u64, opponent_pieces: u64) -> u64 {
     let magic = ROOK_MAGICS[rook as usize];
-    let moves = ROOK_ATTACKS[((magic
+
+    ROOK_ATTACKS[((magic
         .magic
         .wrapping_mul((player_pieces | opponent_pieces) & magic.mask))
         >> (64 - magic.bits)) as usize
         + magic.offset]
-        & !player_pieces;
-
-    moves
+        & !player_pieces
 }
 
 pub fn bishop_moves(bishops: u64, player_pieces: u64, opponent_pieces: u64, out: &mut Vec<Move>) {
@@ -61,12 +57,11 @@ pub fn bishop_moves(bishops: u64, player_pieces: u64, opponent_pieces: u64, out:
 
 pub fn single_bishop_moves(bishop: u8, player_pieces: u64, opponent_pieces: u64) -> u64 {
     let magic = BISHOP_MAGICS[bishop as usize];
-    let moves = BISHOP_ATTACKS[((magic
+
+    BISHOP_ATTACKS[((magic
         .magic
         .wrapping_mul((player_pieces | opponent_pieces) & magic.mask))
         >> (64 - magic.bits)) as usize
         + magic.offset]
-        & !player_pieces;
-
-    moves
+        & !player_pieces
 }
