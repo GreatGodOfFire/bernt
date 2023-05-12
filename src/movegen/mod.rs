@@ -1,21 +1,18 @@
 use std::mem;
 
-use crate::{
-    position::{
-        piece::{
-            PieceColor::{self, *},
-            PieceType::{self, *},
-        },
-        Position,
+use crate::position::{
+    piece::{
+        PieceColor::{self, *},
+        PieceType::{self, *},
     },
-    PERFT_DEPTH,
+    Position,
 };
 
 use self::{
     king::{castling_moves, king_moves, lookup_king},
     knight::{knight_moves, single_knight_moves},
     pawn::{double_pawn_moves, en_passant, pawn_attacks, single_pawn_attacks, single_pawn_moves},
-    sliding::{bishop_moves, rook_moves, single_bishop_moves, single_rook_moves}, bitboard::BitIter,
+    sliding::{bishop_moves, rook_moves, single_bishop_moves, single_rook_moves},
 };
 
 pub mod bitboard;
@@ -110,7 +107,54 @@ pub enum Moves {
     Stalemate,
     Checkmate,
 }
-pub fn perft(position: &Position, depth: u8) -> u64 {
+
+pub struct PerftResult {
+    pub all: u64,
+    pub divided: Vec<(Move, u64)>,
+}
+
+pub fn perft(position: &Position, depth: u8) -> PerftResult {
+    let mut divided = vec![];
+
+    if depth == 0 {
+        return PerftResult { all: 1, divided };
+    }
+
+    let moves = movegen(position);
+
+    match moves {
+        Moves::PseudoLegalMoves(moves) => {
+            let mut n = 0;
+
+            let positions: Vec<_> = moves
+                .iter()
+                .map(|m| (m, position.make_move(*m)))
+                .filter(|(_, p)| {
+                    !is_attacking(
+                        p.bitboards[!p.to_move][King].trailing_zeros() as u8,
+                        &p,
+                        p.to_move,
+                    )
+                })
+                .collect();
+
+            if positions.len() == 0 {
+                return PerftResult { all: 1, divided };
+            }
+
+            for (m, pos) in positions {
+                let x = _perft(&pos, depth - 1);
+                divided.push((*m, x));
+                n += x;
+            }
+
+            PerftResult { all: n, divided }
+        }
+        Moves::Stalemate | Moves::Checkmate => PerftResult { all: 1, divided },
+    }
+}
+
+fn _perft(position: &Position, depth: u8) -> u64 {
     if depth == 0 {
         return 1;
     }
@@ -123,28 +167,28 @@ pub fn perft(position: &Position, depth: u8) -> u64 {
 
             let positions: Vec<_> = moves
                 .iter()
-                .map(|m| (m, position.make_move(*m)))
-                // .filter(|(_, p)| !is_in_check(&p, !p.to_move))
-                .filter(|(_, p)| !is_attacking(p.bitboards[!p.to_move][King].trailing_zeros() as u8, &p, p.to_move))
+                .map(|m| position.make_move(*m))
+                .filter(|p| {
+                    !is_attacking(
+                        p.bitboards[!p.to_move][King].trailing_zeros() as u8,
+                        &p,
+                        p.to_move,
+                    )
+                })
                 .collect();
 
             if positions.len() == 0 {
                 return 0;
             }
-            
-            for (m, pos) in positions {
-                let x = perft(&pos, depth - 1);
-                if depth == PERFT_DEPTH {
-                    println!("{m:?}: {x}");
-                }
+
+            for pos in positions {
+                let x = _perft(&pos, depth - 1);
                 n += x;
             }
-            
+
             n
         }
-        Moves::Stalemate | Moves::Checkmate => {
-            1
-        }
+        Moves::Stalemate | Moves::Checkmate => 1,
     }
 }
 
@@ -157,8 +201,7 @@ pub fn is_attacking(square: u8, position: &Position, to_move: PieceColor) -> boo
     if rooks & opponent_rooks != 0 {
         return true;
     }
-    let opponent_bishops =
-        position.bitboards[to_move][Bishop] | position.bitboards[to_move][Queen];
+    let opponent_bishops = position.bitboards[to_move][Bishop] | position.bitboards[to_move][Queen];
     let bishops = single_bishop_moves(square, 0, player_pieces | opponent_pieces);
     if bishops & opponent_bishops != 0 {
         return true;
@@ -208,7 +251,7 @@ pub fn count_checking(position: &Position) -> u32 {
     if n >= 2 {
         return n;
     }
-    
+
     let pawns = single_pawn_attacks(king_sq, to_move);
     n += (pawns & position.bitboards[!to_move][Pawn]).count_ones();
     if n >= 2 {
@@ -276,13 +319,7 @@ fn pseudo_legal_movegen(position: &Position) -> Moves {
 
     // King
     king_moves(player[King], empty, !opponent[Empty], &mut moves);
-    castling_moves(
-        player[King],
-        to_move,
-        empty,
-        position,
-        &mut moves,
-    );
+    castling_moves(player[King], to_move, empty, position, &mut moves);
 
     // Pawns
     single_pawn_moves(player[Pawn], to_move, empty, &mut moves);

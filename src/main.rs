@@ -1,24 +1,21 @@
-#![feature(const_eval_limit)]
-#![const_eval_limit = "5000000"]
-
 use std::time::Instant;
 
-use movegen::perft;
-use position::Position;
+use bernt::movegen::perft;
+use bernt::position::Position;
 
-mod movegen;
-mod position;
-
-const PERFT_DEPTH: u8 = 5;
 fn main() {
     let position = Position::startpos();
     let instant = Instant::now();
-    let nodes = perft(&position, PERFT_DEPTH);
+    let nodes = perft(&position, 5);
+    let elapsed = instant.elapsed();
 
-    println!("Nodes: {nodes}");
-    println!("Elapsed: {:?}", instant.elapsed());
+    for (m, x) in nodes.divided {
+        println!("{m:?}: {x}");
+    }
+    println!("Nodes: {}", nodes.all);
+    println!("Elapsed: {elapsed:?}");
     println!(
         "Nodes per second: {}",
-        (nodes as f32 / instant.elapsed().as_secs_f32()).round() as u64
+        (nodes.all as f32 / instant.elapsed().as_secs_f32()).round() as u64
     );
 }

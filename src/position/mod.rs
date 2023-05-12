@@ -23,12 +23,29 @@ impl Position {
     pub fn make_move(&self, m: Move) -> Self {
         let mut pos = self.clone();
 
-        pos.en_passant = -1;
-
         let mut piece = pos.mailbox[m.from() as usize];
         let from_bit = 1u64 << m.from();
         let to_bit = 1u64 << m.to();
 
+        // captures
+        if m.code() == Code::EnPassantCapture {
+            let sq = (pos.en_passant
+                + match pos.to_move {
+                    PieceColor::White => -8,
+                    PieceColor::Black => 8,
+                }) as u64;
+
+            let target = pos.mailbox[sq as usize];
+            let sq_bit = 1 << sq;
+            pos.bitboards[target] ^= sq_bit;
+            pos.bitboards[!pos.to_move][PieceType::Empty] ^= sq_bit;
+        } else if m.is_capture() {
+            let target = pos.mailbox[m.to() as usize];
+            pos.bitboards[target] ^= to_bit;
+            pos.bitboards[!pos.to_move][PieceType::Empty] ^= to_bit;
+        }
+
+        pos.en_passant = -1;
         // en passant
         if m.code() == Code::DoublePawnPush {
             pos.en_passant = match pos.to_move {
@@ -37,17 +54,11 @@ impl Position {
             };
         }
 
-        // captures
-        if m.is_capture() {
-            let target = pos.mailbox[m.to() as usize];
-            pos.bitboards[target] ^= to_bit;
-            pos.bitboards[!pos.to_move][PieceType::Empty] ^= to_bit;
-        }
-
         // promotions
         if let Some(ty) = m.promotion() {
-            piece.ty = ty;
             pos.bitboards[piece] ^= from_bit;
+            piece.ty = ty;
+            pos.bitboards[piece] ^= to_bit;
         } else {
             pos.bitboards[piece] ^= from_bit | to_bit;
         }
@@ -84,7 +95,7 @@ impl Position {
         pos.fullmove_clock += pos.to_move as u16;
         pos.halfmove_clock += 1;
 
-        pos.to_move = !pos.to_move;        
+        pos.to_move = !pos.to_move;
 
         pos
     }
@@ -120,7 +131,7 @@ impl Position {
                 (PieceType::King, -2) => {
                     return self.make_move(Move::new(from, to, Code::QueenCastle))
                 }
-                (PieceType::Pawn, -8 | 8) => {
+                (PieceType::Pawn, -16 | 16) => {
                     return self.make_move(Move::new(from, to, Code::DoublePawnPush))
                 }
                 _ => {}

@@ -2,11 +2,13 @@ use crate::position::{piece::PieceColor, Position};
 
 use super::{
     bitboard::BitIter,
+    is_attacking,
     util::{FILE_A, FILE_H, RANK_1, RANK_8},
-    Code, Move, is_attacking,
+    Code, Move,
 };
 
-pub fn king_moves(king: u64, free_squares: u64, enemies: u64, out: &mut Vec<Move>) { let from = king.trailing_zeros();
+pub fn king_moves(king: u64, free_squares: u64, enemies: u64, out: &mut Vec<Move>) {
+    let from = king.trailing_zeros();
     let moves = LOOKUP[from as usize];
 
     for to in BitIter(moves & free_squares) {
