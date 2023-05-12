@@ -1,13 +1,12 @@
-use crate::position::piece::PieceColor;
+use crate::position::{piece::PieceColor, Position};
 
 use super::{
     bitboard::BitIter,
     util::{FILE_A, FILE_H, RANK_1, RANK_8},
-    Code, Move,
+    Code, Move, is_attacking,
 };
 
-pub fn king_moves(king: u64, free_squares: u64, enemies: u64, out: &mut Vec<Move>) {
-    let from = king.trailing_zeros();
+pub fn king_moves(king: u64, free_squares: u64, enemies: u64, out: &mut Vec<Move>) { let from = king.trailing_zeros();
     let moves = LOOKUP[from as usize];
 
     for to in BitIter(moves & free_squares) {
@@ -19,30 +18,37 @@ pub fn king_moves(king: u64, free_squares: u64, enemies: u64, out: &mut Vec<Move
     }
 }
 
+pub fn lookup_king(king: u8) -> u64 {
+    LOOKUP[king as usize]
+}
+
 pub fn castling_moves(
     king: u64,
     color: PieceColor,
-    attacked_squares: u64,
     empty: u64,
-    castling_rights: [bool; 2],
+    position: &Position,
     out: &mut Vec<Move>,
 ) {
-    let row = ((!empty >> (color as u8 * 56)) & 0xff) | (attacked_squares & !0x2);
+    let row = (!empty >> (color as u8 * 56)) & 0xff;
     let king_square = king.trailing_zeros();
 
-    if QUEENSIDE_CASTLE & row == 0 && castling_rights[0] {
-        out.push(Move::new(
-            king_square as u16,
-            king_square as u16 - 2,
-            Code::QueenCastle,
-        ));
+    if QUEENSIDE_CASTLE & row == 0 && position.castling[color][0] {
+        if !is_attacking(king_square as u8 - 1, position, !color) {
+            out.push(Move::new(
+                king_square as u16,
+                king_square as u16 - 2,
+                Code::QueenCastle,
+            ));
+        }
     }
-    if KINGSIDE_CASTLE & row == 0 && castling_rights[1] {
-        out.push(Move::new(
-            king_square as u16,
-            king_square as u16 + 2,
-            Code::KingCastle,
-        ));
+    if KINGSIDE_CASTLE & row == 0 && position.castling[color][1] {
+        if !is_attacking(king_square as u8 + 1, position, !color) {
+            out.push(Move::new(
+                king_square as u16,
+                king_square as u16 + 2,
+                Code::KingCastle,
+            ));
+        }
     }
 }
 

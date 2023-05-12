@@ -23,6 +23,8 @@ impl Position {
     pub fn make_move(&self, m: Move) -> Self {
         let mut pos = self.clone();
 
+        pos.en_passant = -1;
+
         let mut piece = pos.mailbox[m.from() as usize];
         let from_bit = 1u64 << m.from();
         let to_bit = 1u64 << m.to();
@@ -79,8 +81,10 @@ impl Position {
         pos.mailbox[m.to() as usize] = piece;
         pos.bitboards[pos.to_move][PieceType::Empty] ^= from_bit | to_bit;
 
-        pos.en_passant = -1;
-        pos.to_move = !pos.to_move;
+        pos.fullmove_clock += pos.to_move as u16;
+        pos.halfmove_clock += 1;
+
+        pos.to_move = !pos.to_move;        
 
         pos
     }

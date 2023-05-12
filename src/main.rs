@@ -9,7 +9,7 @@ use position::Position;
 mod movegen;
 mod position;
 
-const PERFT_DEPTH: u8 = 4;
+const PERFT_DEPTH: u8 = 5;
 fn main() {
     let position = Position::startpos();
     let instant = Instant::now();
