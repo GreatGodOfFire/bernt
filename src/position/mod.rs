@@ -43,6 +43,16 @@ impl Position {
             let target = pos.mailbox[m.to() as usize];
             pos.bitboards[target] ^= to_bit;
             pos.bitboards[!pos.to_move][PieceType::Empty] ^= to_bit;
+
+            // take castling rights
+            if target.ty == PieceType::Rook {
+                if m.to().wrapping_sub(56 * !pos.to_move as u16) == 0 {
+                    pos.castling[!pos.to_move][0] = false;
+                }
+                if m.to().wrapping_sub(56 * !pos.to_move as u16) == 7 {
+                    pos.castling[!pos.to_move][1] = false;
+                }
+            }
         }
 
         pos.en_passant = -1;
@@ -165,7 +175,7 @@ impl Position {
         // let en_passant: i8,
 
         let parts = fen.split(' ').collect::<Vec<_>>();
-        if parts.len() != 6 {
+        if parts.len() < 4 {
             return None;
         }
         let ranks = parts[0].split('/');
@@ -210,10 +220,10 @@ impl Position {
                         bitboards[piece] |= 1 << square;
 
                         j += 1;
-                        idx += 1;
                     }
                     _ => return None,
                 }
+                idx += 1;
             }
         }
         bitboards[PieceColor::White][PieceType::Empty] = !bitboards[0].iter().fold(0, |x, y| x | y);
@@ -262,8 +272,8 @@ impl Position {
             }
         };
 
-        let halfmove_clock = parts[4].parse().ok()?;
-        let fullmove_clock = parts[5].parse().ok()?;
+        let halfmove_clock = parts.get(4).unwrap_or(&"0").parse().ok()?;
+        let fullmove_clock = parts.get(5).unwrap_or(&"1").parse().ok()?;
 
         Some(Self {
             bitboards,

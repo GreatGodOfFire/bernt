@@ -64,8 +64,16 @@ impl Move {
 
 impl std::fmt::Debug for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let promotion = match self.promotion() {
+            Some(Knight) => "n",
+            Some(Bishop) => "b",
+            Some(Rook) => "r",
+            Some(Queen) => "q",
+            _ => "",
+        };
+
         f.write_fmt(format_args!(
-            "{}{}",
+            "{}{}{promotion}",
             format_square(self.from() as u8),
             format_square(self.to() as u8)
         ))
@@ -88,7 +96,7 @@ pub enum Code {
     QueenCastle,
     Capture,
     EnPassantCapture,
-    KnightPromotion,
+    KnightPromotion = 8,
     BishopPromotion,
     RookPromotion,
     QueenPromotion,

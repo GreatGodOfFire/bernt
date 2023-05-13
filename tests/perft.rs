@@ -40,3 +40,41 @@ fn startpos_6() {
 fn startpos_7() {
     assert_eq!(perft(&Position::startpos(), 7), 3195901860);
 }
+
+// See https://www.chessprogramming.org/Perft_Results#Position_2
+#[test]
+fn kiwipete_0() {
+    assert_eq!(perft(&Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -").unwrap(), 0), 1);
+}
+
+#[test]
+fn kiwipete_1() {
+    assert_eq!(perft(&Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -").unwrap(), 1), 48);
+}
+
+#[test]
+fn kiwipete_2() {
+    assert_eq!(perft(&Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -").unwrap(), 2), 2039);
+}
+
+#[test]
+fn kiwipete_3() {
+    assert_eq!(perft(&Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -").unwrap(), 3), 97862);
+}
+
+#[test]
+fn kiwipete_4() {
+    assert_eq!(perft(&Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -").unwrap(), 4), 4085603);
+}
+
+#[test]
+fn kiwipete_5() {
+    assert_eq!(perft(&Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -").unwrap(), 5), 193690690);
+}
+
+#[test]
+#[ignore]
+fn kiwipete_6() {
+    assert_eq!(perft(&Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -").unwrap(), 6), 8031647685);
+}
+

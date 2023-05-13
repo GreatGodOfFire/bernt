@@ -2,25 +2,30 @@ use crate::position::piece::PieceColor;
 
 use super::{
     bitboard::BitIter,
-    util::{east, north, south, west, RANK_1, RANK_8},
+    util::{east, north, south, west, RANK_1, RANK_8, RANK_7, RANK_2},
     Code, Move,
 };
 
 pub fn single_pawn_moves(pawns: u64, color: PieceColor, empty: u64, out: &mut Vec<Move>) {
-    let moves = match color {
-        PieceColor::White => pawns << 8,
-        PieceColor::Black => pawns >> 8,
-    } & empty;
     let movable_pawns = match color {
         PieceColor::White => pawns & (empty >> 8),
         PieceColor::Black => pawns & (empty << 8),
     };
+    let moves = match color {
+        PieceColor::White => movable_pawns << 8,
+        PieceColor::Black => movable_pawns >> 8,
+    } & empty;
 
-    for (from, to) in BitIter(movable_pawns).zip(BitIter(moves & !(0xff << 56 | 0xff))) {
+    let (promoting_piece_mask, promotions_mask) = match color {
+        PieceColor::White => (RANK_7, RANK_8),
+        PieceColor::Black => (RANK_2, RANK_1),
+    };
+
+    for (from, to) in BitIter(movable_pawns & !promoting_piece_mask).zip(BitIter(moves & !promotions_mask)) {
         out.push(Move::new(from as u16, to as u16, Code::Quiet));
     }
 
-    for (from, to) in BitIter(movable_pawns).zip(BitIter(moves & (0xff << 56 | 0xff))) {
+    for (from, to) in BitIter(movable_pawns & promoting_piece_mask).zip(BitIter(moves & promotions_mask)) {
         out.push(Move::new(from as u16, to as u16, Code::KnightPromotion));
         out.push(Move::new(from as u16, to as u16, Code::BishopPromotion));
         out.push(Move::new(from as u16, to as u16, Code::RookPromotion));

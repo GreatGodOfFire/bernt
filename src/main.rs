@@ -6,12 +6,6 @@ use bernt::position::Position;
 #[cfg(not(feature = "perftree"))]
 fn main() {
     let position = Position::startpos();
-    let position = position.make_move_uci("e2e4");
-    let position = position.make_move_uci("e7e5");
-    let position = position.make_move_uci("f1c4");
-    let position = position.make_move_uci("d8h4");
-    let position = position.make_move_uci("g1f3");
-    let position = position.make_move_uci("h4e4");
     let instant = Instant::now();
     let nodes = perft_print(&position, 1);
     let elapsed = instant.elapsed();
