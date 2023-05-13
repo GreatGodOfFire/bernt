@@ -109,7 +109,7 @@ pub struct PerftResult {
     pub divided: Vec<(Move, u64)>,
 }
 
-pub fn perft(position: &Position, depth: u8) -> PerftResult {
+pub fn perft_print(position: &Position, depth: u8) -> PerftResult {
     let mut divided = vec![];
 
     if depth == 0 {
@@ -139,8 +139,13 @@ pub fn perft(position: &Position, depth: u8) -> PerftResult {
             }
 
             for (m, pos) in positions {
-                let x = _perft(&pos, depth - 1);
+                let x = perft(&pos, depth - 1);
                 divided.push((*m, x));
+                if cfg!(feature = "perftree") {
+                    println!("{m:?} {x}");
+                } else {
+                    println!("{m:?}: {x}");
+                }
                 n += x;
             }
 
@@ -150,7 +155,7 @@ pub fn perft(position: &Position, depth: u8) -> PerftResult {
     }
 }
 
-fn _perft(position: &Position, depth: u8) -> u64 {
+pub fn perft(position: &Position, depth: u8) -> u64 {
     if depth == 0 {
         return 1;
     }
@@ -178,7 +183,7 @@ fn _perft(position: &Position, depth: u8) -> u64 {
             }
 
             for pos in positions {
-                let x = _perft(&pos, depth - 1);
+                let x = perft(&pos, depth - 1);
                 n += x;
             }
 
