@@ -44,6 +44,7 @@ pub fn castling_moves(
             Code::QueenCastle,
         ));
     }
+
     if KINGSIDE_CASTLE & row == 0
         && position.castling[color][1]
         && !is_attacking(king_square as u8 + 1, position, !color)

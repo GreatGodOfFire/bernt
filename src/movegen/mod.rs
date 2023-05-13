@@ -215,7 +215,7 @@ pub fn is_attacking(square: u8, position: &Position, to_move: PieceColor) -> boo
     if pawns & position.bitboards[to_move][Pawn] != 0 {
         return true;
     }
-    if (1 << square) & lookup_king(position.bitboards[!to_move][King].trailing_zeros() as u8) != 0 {
+    if (1 << square) & lookup_king(position.bitboards[to_move][King].trailing_zeros() as u8) != 0 {
         return true;
     }
 
@@ -232,7 +232,7 @@ pub fn count_checking(position: &Position) -> u32 {
     let opponent_pieces = !position.bitboards[!to_move][Empty];
 
     let opponent_rooks = position.bitboards[!to_move][Rook] | position.bitboards[!to_move][Queen];
-    let rooks = single_rook_moves(king_sq, player_pieces | opponent_pieces, opponent_rooks);
+    let rooks = single_rook_moves(king_sq, 0, player_pieces | opponent_pieces);
 
     n += (rooks & opponent_rooks).count_ones();
     if n >= 2 {
@@ -241,7 +241,7 @@ pub fn count_checking(position: &Position) -> u32 {
 
     let opponent_bishops =
         position.bitboards[!to_move][Bishop] | position.bitboards[!to_move][Queen];
-    let bishops = single_bishop_moves(king_sq, player_pieces, opponent_pieces);
+    let bishops = single_bishop_moves(king_sq, 0, player_pieces | opponent_pieces);
 
     n += (bishops & opponent_bishops).count_ones();
     if n >= 2 {
@@ -264,14 +264,10 @@ pub fn count_checking(position: &Position) -> u32 {
 }
 
 pub fn movegen(position: &Position) -> Moves {
-    // Check if in check
-    // If checkmated: return Moves::Checkmate
-    // let (checking_pieces, attacked_squares, pinned_pieces) = checking_pieces(position);
-    // let in_check = !checking_pieces.is_empty();
     let checking = count_checking(position);
 
     match checking {
-        0 | 1 => pseudo_legal_movegen(position),
+        0 | 1 => pseudo_legal_movegen(position, checking == 1),
         _ => king_movegen(position),
     }
 }
@@ -293,7 +289,7 @@ fn king_movegen(position: &Position) -> Moves {
     }
 }
 
-fn pseudo_legal_movegen(position: &Position) -> Moves {
+fn pseudo_legal_movegen(position: &Position, in_check: bool) -> Moves {
     let to_move = position.to_move;
     let empty = position.bitboards[White][Empty] & position.bitboards[Black][Empty];
 
@@ -321,7 +317,9 @@ fn pseudo_legal_movegen(position: &Position) -> Moves {
 
     // King
     king_moves(player[King], empty, !opponent[Empty], &mut moves);
-    castling_moves(player[King], to_move, empty, position, &mut moves);
+    if !in_check {
+        castling_moves(player[King], to_move, empty, position, &mut moves);
+    }
 
     // Pawns
     single_pawn_moves(player[Pawn], to_move, empty, &mut moves);

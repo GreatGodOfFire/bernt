@@ -34,3 +34,9 @@ fn startpos_5() {
 fn startpos_6() {
     assert_eq!(perft(&Position::startpos(), 6), 119060324);
 }
+
+#[test]
+#[ignore]
+fn startpos_7() {
+    assert_eq!(perft(&Position::startpos(), 7), 3195901860);
+}
