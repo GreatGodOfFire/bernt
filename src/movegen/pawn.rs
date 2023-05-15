@@ -2,7 +2,7 @@ use crate::position::piece::PieceColor;
 
 use super::{
     bitboard::BitIter,
-    util::{east, north, south, west, RANK_1, RANK_8, RANK_7, RANK_2},
+    util::{east, north, south, west, RANK_1, RANK_2, RANK_7, RANK_8},
     Code, Move,
 };
 
@@ -21,11 +21,15 @@ pub fn single_pawn_moves(pawns: u64, color: PieceColor, empty: u64, out: &mut Ve
         PieceColor::Black => (RANK_2, RANK_1),
     };
 
-    for (from, to) in BitIter(movable_pawns & !promoting_piece_mask).zip(BitIter(moves & !promotions_mask)) {
+    for (from, to) in
+        BitIter(movable_pawns & !promoting_piece_mask).zip(BitIter(moves & !promotions_mask))
+    {
         out.push(Move::new(from as u16, to as u16, Code::Quiet));
     }
 
-    for (from, to) in BitIter(movable_pawns & promoting_piece_mask).zip(BitIter(moves & promotions_mask)) {
+    for (from, to) in
+        BitIter(movable_pawns & promoting_piece_mask).zip(BitIter(moves & promotions_mask))
+    {
         out.push(Move::new(from as u16, to as u16, Code::KnightPromotion));
         out.push(Move::new(from as u16, to as u16, Code::BishopPromotion));
         out.push(Move::new(from as u16, to as u16, Code::RookPromotion));

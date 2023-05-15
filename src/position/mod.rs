@@ -91,10 +91,10 @@ impl Position {
         if piece.ty == PieceType::King {
             pos.castling[pos.to_move] = [false, false];
         }
-        if piece.ty == PieceType::Rook && (m.from() == 0 || m.from() == 56) {
+        if piece.ty == PieceType::Rook && (m.from() == 56 * pos.to_move as u16) {
             pos.castling[pos.to_move][0] = false;
         }
-        if piece.ty == PieceType::Rook && (m.from() == 7 || m.from() == 63) {
+        if piece.ty == PieceType::Rook && (m.from() == 56 * pos.to_move as u16 + 7) {
             pos.castling[pos.to_move][1] = false;
         }
 

@@ -1,10 +1,10 @@
-use std::time::Instant;
-
 use bernt::movegen::perft_print;
 use bernt::position::Position;
 
 #[cfg(not(feature = "perftree"))]
 fn main() {
+    use std::time::Instant;
+
     let position = Position::startpos();
     let instant = Instant::now();
     let nodes = perft_print(&position, 1);
@@ -38,4 +38,3 @@ fn main() {
     println!();
     println!("{}", x.all);
 }
-
