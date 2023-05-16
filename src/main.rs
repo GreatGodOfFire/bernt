@@ -5,17 +5,24 @@ use bernt::position::Position;
 fn main() {
     use std::time::Instant;
 
-    let position = Position::startpos();
+    let mut position = Position::startpos();
     let instant = Instant::now();
-    let nodes = perft_print(&position, 1);
+    let nodes = perft_print(
+        &mut position,
+        std::env::args()
+            .nth(1)
+            .map(|x| x.parse().ok())
+            .flatten()
+            .unwrap_or(5),
+    );
     let elapsed = instant.elapsed();
 
     println!();
-    println!("Nodes: {}", nodes.all);
+    println!("Nodes: {}", nodes);
     println!("Elapsed: {elapsed:?}");
     println!(
         "Nodes per second: {}",
-        (nodes.all as f32 / instant.elapsed().as_secs_f32()).round() as u64
+        (nodes as f32 / instant.elapsed().as_secs_f32()).round() as u64
     );
 }
 
@@ -30,11 +37,11 @@ fn main() {
 
     if let Some(moves) = moves {
         for m in moves.split(' ') {
-            position = position.make_move_uci(m);
+            position.make_move_uci(m);
         }
     }
 
-    let x = perft_print(&position, depth);
+    let x = perft_print(&mut position, depth);
     println!();
-    println!("{}", x.all);
+    println!("{}", x);
 }

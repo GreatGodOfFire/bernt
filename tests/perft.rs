@@ -2,44 +2,44 @@ use bernt::{movegen::perft, position::Position};
 
 #[test]
 fn startpos_0() {
-    assert_eq!(perft(&Position::startpos(), 0), 1);
+    assert_eq!(perft(&mut Position::startpos(), 0), 1);
 }
 
 #[test]
 fn startpos_1() {
-    assert_eq!(perft(&Position::startpos(), 1), 20);
+    assert_eq!(perft(&mut Position::startpos(), 1), 20);
 }
 
 #[test]
 fn startpos_2() {
-    assert_eq!(perft(&Position::startpos(), 2), 400);
+    assert_eq!(perft(&mut Position::startpos(), 2), 400);
 }
 
 #[test]
 fn startpos_3() {
-    assert_eq!(perft(&Position::startpos(), 3), 8902);
+    assert_eq!(perft(&mut Position::startpos(), 3), 8902);
 }
 
 #[test]
 fn startpos_4() {
-    assert_eq!(perft(&Position::startpos(), 4), 197281);
+    assert_eq!(perft(&mut Position::startpos(), 4), 197281);
 }
 
 #[test]
 fn startpos_5() {
-    assert_eq!(perft(&Position::startpos(), 5), 4865609);
+    assert_eq!(perft(&mut Position::startpos(), 5), 4865609);
 }
 
 #[test]
 #[ignore]
 fn startpos_6() {
-    assert_eq!(perft(&Position::startpos(), 6), 119060324);
+    assert_eq!(perft(&mut Position::startpos(), 6), 119060324);
 }
 
 #[test]
 #[ignore]
 fn startpos_7() {
-    assert_eq!(perft(&Position::startpos(), 7), 3195901860);
+    assert_eq!(perft(&mut Position::startpos(), 7), 3195901860);
 }
 
 // See https://www.chessprogramming.org/Perft_Results#Position_2
@@ -47,8 +47,10 @@ fn startpos_7() {
 fn kiwipete_0() {
     assert_eq!(
         perft(
-            &Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -")
-                .unwrap(),
+            &mut Position::from_fen(
+                "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -"
+            )
+            .unwrap(),
             0
         ),
         1
@@ -59,8 +61,10 @@ fn kiwipete_0() {
 fn kiwipete_1() {
     assert_eq!(
         perft(
-            &Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -")
-                .unwrap(),
+            &mut Position::from_fen(
+                "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -"
+            )
+            .unwrap(),
             1
         ),
         48
@@ -71,8 +75,10 @@ fn kiwipete_1() {
 fn kiwipete_2() {
     assert_eq!(
         perft(
-            &Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -")
-                .unwrap(),
+            &mut Position::from_fen(
+                "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -"
+            )
+            .unwrap(),
             2
         ),
         2039
@@ -83,8 +89,10 @@ fn kiwipete_2() {
 fn kiwipete_3() {
     assert_eq!(
         perft(
-            &Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -")
-                .unwrap(),
+            &mut Position::from_fen(
+                "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -"
+            )
+            .unwrap(),
             3
         ),
         97862
@@ -95,8 +103,10 @@ fn kiwipete_3() {
 fn kiwipete_4() {
     assert_eq!(
         perft(
-            &Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -")
-                .unwrap(),
+            &mut Position::from_fen(
+                "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -"
+            )
+            .unwrap(),
             4
         ),
         4085603
@@ -108,8 +118,10 @@ fn kiwipete_4() {
 fn kiwipete_5() {
     assert_eq!(
         perft(
-            &Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -")
-                .unwrap(),
+            &mut Position::from_fen(
+                "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -"
+            )
+            .unwrap(),
             5
         ),
         193690690
@@ -121,8 +133,10 @@ fn kiwipete_5() {
 fn kiwipete_6() {
     assert_eq!(
         perft(
-            &Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -")
-                .unwrap(),
+            &mut Position::from_fen(
+                "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -"
+            )
+            .unwrap(),
             6
         ),
         8031647685
@@ -134,7 +148,7 @@ fn kiwipete_6() {
 fn pos3_0() {
     assert_eq!(
         perft(
-            &Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
+            &mut Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
             0
         ),
         1
@@ -145,7 +159,7 @@ fn pos3_0() {
 fn pos3_1() {
     assert_eq!(
         perft(
-            &Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
+            &mut Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
             1
         ),
         14
@@ -156,7 +170,7 @@ fn pos3_1() {
 fn pos3_2() {
     assert_eq!(
         perft(
-            &Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
+            &mut Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
             2
         ),
         191
@@ -167,7 +181,7 @@ fn pos3_2() {
 fn pos3_3() {
     assert_eq!(
         perft(
-            &Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
+            &mut Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
             3
         ),
         2812
@@ -178,7 +192,7 @@ fn pos3_3() {
 fn pos3_4() {
     assert_eq!(
         perft(
-            &Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
+            &mut Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
             4
         ),
         43238
@@ -189,7 +203,7 @@ fn pos3_4() {
 fn pos3_5() {
     assert_eq!(
         perft(
-            &Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
+            &mut Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
             5
         ),
         674624
@@ -201,7 +215,7 @@ fn pos3_5() {
 fn pos3_6() {
     assert_eq!(
         perft(
-            &Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
+            &mut Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
             6
         ),
         11030083
@@ -213,7 +227,7 @@ fn pos3_6() {
 fn pos3_7() {
     assert_eq!(
         perft(
-            &Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
+            &mut Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
             7
         ),
         178633661
@@ -225,7 +239,7 @@ fn pos3_7() {
 fn pos3_8() {
     assert_eq!(
         perft(
-            &Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
+            &mut Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -").unwrap(),
             8
         ),
         3009794393
@@ -237,8 +251,10 @@ fn pos3_8() {
 fn pos4_0() {
     assert_eq!(
         perft(
-            &Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
-                .unwrap(),
+            &mut Position::from_fen(
+                "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1"
+            )
+            .unwrap(),
             0
         ),
         1
@@ -249,8 +265,10 @@ fn pos4_0() {
 fn pos4_1() {
     assert_eq!(
         perft(
-            &Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
-                .unwrap(),
+            &mut Position::from_fen(
+                "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1"
+            )
+            .unwrap(),
             1
         ),
         6
@@ -261,8 +279,10 @@ fn pos4_1() {
 fn pos4_2() {
     assert_eq!(
         perft(
-            &Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
-                .unwrap(),
+            &mut Position::from_fen(
+                "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1"
+            )
+            .unwrap(),
             2
         ),
         264
@@ -273,8 +293,10 @@ fn pos4_2() {
 fn pos4_3() {
     assert_eq!(
         perft(
-            &Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
-                .unwrap(),
+            &mut Position::from_fen(
+                "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1"
+            )
+            .unwrap(),
             3
         ),
         9467
@@ -285,8 +307,10 @@ fn pos4_3() {
 fn pos4_4() {
     assert_eq!(
         perft(
-            &Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
-                .unwrap(),
+            &mut Position::from_fen(
+                "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1"
+            )
+            .unwrap(),
             4
         ),
         422333
@@ -298,8 +322,10 @@ fn pos4_4() {
 fn pos4_5() {
     assert_eq!(
         perft(
-            &Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
-                .unwrap(),
+            &mut Position::from_fen(
+                "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1"
+            )
+            .unwrap(),
             5
         ),
         15833292
@@ -311,8 +337,10 @@ fn pos4_5() {
 fn pos4_6() {
     assert_eq!(
         perft(
-            &Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
-                .unwrap(),
+            &mut Position::from_fen(
+                "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1"
+            )
+            .unwrap(),
             6
         ),
         706045033
@@ -324,7 +352,7 @@ fn pos4_6() {
 fn pos5_0() {
     assert_eq!(
         perft(
-            &Position::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
+            &mut Position::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
                 .unwrap(),
             0
         ),
@@ -336,7 +364,7 @@ fn pos5_0() {
 fn pos5_1() {
     assert_eq!(
         perft(
-            &Position::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
+            &mut Position::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
                 .unwrap(),
             1
         ),
@@ -348,7 +376,7 @@ fn pos5_1() {
 fn pos5_2() {
     assert_eq!(
         perft(
-            &Position::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
+            &mut Position::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
                 .unwrap(),
             2
         ),
@@ -360,7 +388,7 @@ fn pos5_2() {
 fn pos5_3() {
     assert_eq!(
         perft(
-            &Position::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
+            &mut Position::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
                 .unwrap(),
             3
         ),
@@ -372,7 +400,7 @@ fn pos5_3() {
 fn pos5_4() {
     assert_eq!(
         perft(
-            &Position::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
+            &mut Position::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
                 .unwrap(),
             4
         ),
@@ -385,7 +413,7 @@ fn pos5_4() {
 fn pos5_5() {
     assert_eq!(
         perft(
-            &Position::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
+            &mut Position::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
                 .unwrap(),
             5
         ),
@@ -398,7 +426,7 @@ fn pos5_5() {
 fn pos6_0() {
     assert_eq!(
         perft(
-            &Position::from_fen(
+            &mut Position::from_fen(
                 "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10"
             )
             .unwrap(),
@@ -412,7 +440,7 @@ fn pos6_0() {
 fn pos6_1() {
     assert_eq!(
         perft(
-            &Position::from_fen(
+            &mut Position::from_fen(
                 "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10"
             )
             .unwrap(),
@@ -426,7 +454,7 @@ fn pos6_1() {
 fn pos6_2() {
     assert_eq!(
         perft(
-            &Position::from_fen(
+            &mut Position::from_fen(
                 "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10"
             )
             .unwrap(),
@@ -440,7 +468,7 @@ fn pos6_2() {
 fn pos6_3() {
     assert_eq!(
         perft(
-            &Position::from_fen(
+            &mut Position::from_fen(
                 "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10"
             )
             .unwrap(),
@@ -454,7 +482,7 @@ fn pos6_3() {
 fn pos6_4() {
     assert_eq!(
         perft(
-            &Position::from_fen(
+            &mut Position::from_fen(
                 "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10"
             )
             .unwrap(),
@@ -469,7 +497,7 @@ fn pos6_4() {
 fn pos6_5() {
     assert_eq!(
         perft(
-            &Position::from_fen(
+            &mut Position::from_fen(
                 "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10"
             )
             .unwrap(),

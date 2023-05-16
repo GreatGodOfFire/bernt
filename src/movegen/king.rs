@@ -35,7 +35,7 @@ pub fn castling_moves(
     let king_square = king.trailing_zeros();
 
     if QUEENSIDE_CASTLE & row == 0
-        && position.castling[color][0]
+        && position.castling()[color][0]
         && !is_attacking(king_square as u8 - 1, position, !color)
     {
         out.push(Move::new(
@@ -46,7 +46,7 @@ pub fn castling_moves(
     }
 
     if KINGSIDE_CASTLE & row == 0
-        && position.castling[color][1]
+        && position.castling()[color][1]
         && !is_attacking(king_square as u8 + 1, position, !color)
     {
         out.push(Move::new(

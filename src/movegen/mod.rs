@@ -117,53 +117,9 @@ pub struct PerftResult {
     pub divided: Vec<(Move, u64)>,
 }
 
-pub fn perft_print(position: &Position, depth: u8) -> PerftResult {
+pub fn perft_print(position: &mut Position, depth: u8) -> u64 {
     let mut divided = vec![];
 
-    if depth == 0 {
-        return PerftResult { all: 1, divided };
-    }
-
-    let moves = movegen(position);
-
-    match moves {
-        Moves::PseudoLegalMoves(moves) => {
-            let mut n = 0;
-
-            let positions: Vec<_> = moves
-                .iter()
-                .map(|m| (m, position.make_move(*m)))
-                .filter(|(_, p)| {
-                    !is_attacking(
-                        p.bitboards[!p.to_move][King].trailing_zeros() as u8,
-                        p,
-                        p.to_move,
-                    )
-                })
-                .collect();
-
-            if positions.is_empty() {
-                return PerftResult { all: 1, divided };
-            }
-
-            for (m, pos) in positions {
-                let x = perft(&pos, depth - 1);
-                divided.push((*m, x));
-                if cfg!(feature = "perftree") {
-                    println!("{m:?} {x}");
-                } else {
-                    println!("{m:?}: {x}");
-                }
-                n += x;
-            }
-
-            PerftResult { all: n, divided }
-        }
-        Moves::Stalemate | Moves::Checkmate => PerftResult { all: 1, divided },
-    }
-}
-
-pub fn perft(position: &Position, depth: u8) -> u64 {
     if depth == 0 {
         return 1;
     }
@@ -174,25 +130,57 @@ pub fn perft(position: &Position, depth: u8) -> u64 {
         Moves::PseudoLegalMoves(moves) => {
             let mut n = 0;
 
-            let positions: Vec<_> = moves
-                .iter()
-                .map(|m| position.make_move(*m))
-                .filter(|p| {
-                    !is_attacking(
-                        p.bitboards[!p.to_move][King].trailing_zeros() as u8,
-                        p,
-                        p.to_move,
-                    )
-                })
-                .collect();
+            for m in moves {
+                position.make_move(m);
+                if !is_attacking(
+                    position.bitboards[!position.to_move][King].trailing_zeros() as u8,
+                    position,
+                    position.to_move,
+                ) {
+                    let x = perft(position, depth - 1);
+                    n += x;
 
-            if positions.is_empty() {
-                return 0;
+                    divided.push((m, x));
+                    if cfg!(feature = "perftree") {
+                        println!("{m:?} {x}");
+                    } else {
+                        println!("{m:?}: {x}");
+                    }
+                } else {
+                    println!("{m:?}");
+                }
+                position.unmake_move(m);
             }
 
-            for pos in positions {
-                let x = perft(&pos, depth - 1);
-                n += x;
+            n
+        }
+        Moves::Stalemate | Moves::Checkmate => 1,
+    }
+}
+
+pub fn perft(position: &mut Position, depth: u8) -> u64 {
+    if depth == 0 {
+        return 1;
+    }
+
+    let moves = movegen(position);
+
+    match moves {
+        Moves::PseudoLegalMoves(moves) => {
+            let mut n = 0;
+
+            for m in moves {
+                position.make_move(m);
+                if !is_attacking(
+                    position.bitboards[!position.to_move][King].trailing_zeros() as u8,
+                    position,
+                    position.to_move,
+                ) {
+                    let x = perft(position, depth - 1);
+                    n += x;
+                } else {
+                }
+                position.unmake_move(m);
             }
 
             n
@@ -333,7 +321,7 @@ fn pseudo_legal_movegen(position: &Position, in_check: bool) -> Moves {
     single_pawn_moves(player[Pawn], to_move, empty, &mut moves);
     double_pawn_moves(player[Pawn], to_move, empty, &mut moves);
     pawn_attacks(player[Pawn], to_move, !opponent[Empty], &mut moves);
-    en_passant(player[Pawn], to_move, position.en_passant, &mut moves);
+    en_passant(player[Pawn], to_move, position.en_passant(), &mut moves);
 
     if moves.is_empty() {
         Moves::Stalemate
