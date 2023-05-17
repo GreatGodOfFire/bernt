@@ -60,6 +60,61 @@ impl Move {
             None
         }
     }
+
+    pub fn from_uci(position: &Position, s: &str) -> Option<Self> {
+        if s.len() > 3 && s.len() < 6 {
+            let chars: Vec<_> = s.chars().collect();
+
+            let from = chars[0] as u16 - 'a' as u16 + (chars[1] as u16 - '1' as u16) * 8;
+            let to = chars[2] as u16 - 'a' as u16 + (chars[3] as u16 - '1' as u16) * 8;
+
+            let promotion = if s.len() == 5 {
+                let x = match chars[4] {
+                    'n' => PieceType::Knight,
+                    'b' => PieceType::Bishop,
+                    'r' => PieceType::Rook,
+                    'q' => PieceType::Queen,
+                    _ => panic!(),
+                };
+                Some(x)
+            } else {
+                None
+            };
+            let piece = position.mailbox[from as usize];
+            let destination = position.mailbox[to as usize];
+
+            let mut code = 0;
+
+            match (piece.ty, to as i8 - from as i8) {
+                (PieceType::King, 2) => {
+                    return Some(Move::new(from, to, Code::KingCastle));
+                }
+                (PieceType::King, -2) => {
+                    return Some(Move::new(from, to, Code::QueenCastle));
+                }
+                (PieceType::Pawn, -16 | 16) => {
+                    return Some(Move::new(from, to, Code::DoublePawnPush));
+                }
+                _ => {}
+            }
+
+            if to as i8 == position.en_passant() {
+                return Some(Move::new(from, to, Code::EnPassantCapture));
+            }
+
+            if destination.ty != PieceType::Empty {
+                code |= 1 << 2;
+            }
+
+            if let Some(promotion) = promotion {
+                code |= promotion as u16 | 1 << 3;
+            }
+
+            Some(Move::new(from, to, unsafe { std::mem::transmute(code) }))
+        } else {
+            None
+        }
+    }
 }
 
 impl std::fmt::Debug for Move {
