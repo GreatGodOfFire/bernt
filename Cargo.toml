@@ -10,5 +10,11 @@ edition = "2021"
 [profile.test]
 opt-level = 3
 
+[profile.release]
+panic = 'abort'
+lto = true
+codegen-units = 1
+strip = true
+
 [features]
 perftree = []
