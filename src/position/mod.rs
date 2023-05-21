@@ -113,7 +113,6 @@ impl Position {
 
     pub fn clear_incremental(&mut self) {
         let start = self.state_index - (self.halfmove_clock() - self.state_offset()) as usize;
-        dbg!(start, self.state_index);
         if start == 0 {
             return;
         }

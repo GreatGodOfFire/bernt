@@ -17,12 +17,12 @@ pub fn hash(position: &Position) -> u64 {
     }
 
     for (x, y) in position.castling().iter().zip(CASTLING.iter()) {
-        hash |= x[0] as u64 * y[0];
-        hash |= x[1] as u64 * y[1];
+        hash ^= x[0] as u64 * y[0];
+        hash ^= x[1] as u64 * y[1];
     }
 
     if position.en_passant() != -1 {
-        hash |= EN_PASSANT[position.en_passant() as usize % 8];
+        hash ^= EN_PASSANT[position.en_passant() as usize % 8];
     }
 
     hash
