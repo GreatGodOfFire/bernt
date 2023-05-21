@@ -5,7 +5,10 @@ use bernt::position::Position;
 fn main() {
     use std::time::Instant;
 
-    use bernt::uci::{recv, send, UciMessage, UciPosition};
+    use bernt::{
+        search::start_search,
+        uci::{recv, send, UciMessage, UciPosition},
+    };
 
     let mut position = Position::startpos();
 
@@ -24,8 +27,12 @@ fn main() {
                     UciPosition::Fen(fen) => Position::from_fen(&fen).unwrap(),
                     UciPosition::Startpos => Position::startpos(),
                 };
-                for m in moves {
-                    position.make_move_uci(&m);
+                for moves in moves.chunks(255) {
+                    for m in moves {
+                        position.make_move_uci(m);
+                        position.calc_zobrist();
+                    }
+                    position.clear_incremental();
                 }
             }
             UciMessage::Perft(depth) => {
@@ -39,8 +46,13 @@ fn main() {
                     (nodes as f32 / instant.elapsed().as_secs_f32()).round() as u64
                 );
             }
-            UciMessage::IsReady => send(UciMessage::IsReady),
-            _ => todo!(),
+            UciMessage::IsReady => send(UciMessage::ReadyOk),
+            UciMessage::Go(time) => {
+                let m = start_search(&mut position, time);
+                println!("bestmove {m:?}");
+            }
+            UciMessage::Stop => break,
+            _ => (),
         }
     }
 }

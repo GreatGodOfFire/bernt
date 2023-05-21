@@ -13,7 +13,7 @@ impl Piece {
     };
 }
 
-impl Index<Piece> for [[u64; 7]; 2] {
+impl<const N: usize, const M: usize> Index<Piece> for [[u64; N]; M] {
     type Output = u64;
 
     fn index(&self, index: Piece) -> &Self::Output {
@@ -21,7 +21,7 @@ impl Index<Piece> for [[u64; 7]; 2] {
     }
 }
 
-impl IndexMut<Piece> for [[u64; 7]; 2] {
+impl<const N: usize, const M: usize> IndexMut<Piece> for [[u64; N]; M] {
     fn index_mut(&mut self, index: Piece) -> &mut Self::Output {
         &mut self[index.color][index.ty]
     }
@@ -34,9 +34,9 @@ pub enum PieceType {
     Bishop,
     Rook,
     Queen,
-    Empty,
     Pawn,
     King,
+    Empty,
 }
 
 impl<T, const N: usize> Index<PieceType> for [T; N] {

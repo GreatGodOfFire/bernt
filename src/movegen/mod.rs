@@ -16,13 +16,13 @@ use self::{
 };
 
 pub mod bitboard;
-mod king;
-mod knight;
-mod pawn;
-mod sliding;
-mod util;
+pub mod king;
+pub mod knight;
+pub mod pawn;
+pub mod sliding;
+pub mod util;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Move(u16);
 
 impl Move {
@@ -59,6 +59,10 @@ impl Move {
         } else {
             None
         }
+    }
+
+    pub fn null() -> Self {
+        Self::new(0, 0, Code::Quiet)
     }
 
     pub fn from_uci(position: &Position, s: &str) -> Option<Self> {
@@ -161,6 +165,7 @@ pub enum Code {
     QueenPromotionCapture,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum Moves {
     PseudoLegalMoves(Vec<Move>),
     Stalemate,
@@ -187,11 +192,7 @@ pub fn perft_print(position: &mut Position, depth: u8) -> u64 {
 
             for m in moves {
                 position.make_move(m);
-                if !is_attacking(
-                    position.bitboards[!position.to_move][King].trailing_zeros() as u8,
-                    position,
-                    position.to_move,
-                ) {
+                if !position.is_in_check(!position.to_move) {
                     let x = perft(position, depth - 1);
                     n += x;
 
@@ -226,11 +227,7 @@ pub fn perft(position: &mut Position, depth: u8) -> u64 {
 
             for m in moves {
                 position.make_move(m);
-                if !is_attacking(
-                    position.bitboards[!position.to_move][King].trailing_zeros() as u8,
-                    position,
-                    position.to_move,
-                ) {
+                if !position.is_in_check(!position.to_move) {
                     let x = perft(position, depth - 1);
                     n += x;
                 } else {
@@ -379,7 +376,11 @@ fn pseudo_legal_movegen(position: &Position, in_check: bool) -> Moves {
     en_passant(player[Pawn], to_move, position.en_passant(), &mut moves);
 
     if moves.is_empty() {
-        Moves::Stalemate
+        if in_check {
+            Moves::Checkmate
+        } else {
+            Moves::Stalemate
+        }
     } else {
         Moves::PseudoLegalMoves(moves)
     }

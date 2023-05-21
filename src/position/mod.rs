@@ -1,4 +1,7 @@
-use crate::movegen::{Code, Move};
+use crate::{
+    movegen::{is_attacking, Code, Move},
+    zobrist::hash,
+};
 
 use self::piece::{
     Piece, PieceColor,
@@ -23,8 +26,10 @@ pub struct Position {
 struct State {
     en_passant: i8,
     halfmove_clock: u8,
+    state_offset: u8,
     castling: [[bool; 2]; 2],
     captured: Option<PieceType>,
+    zobrist: u64,
 }
 
 impl Position {
@@ -44,6 +49,14 @@ impl Position {
         &mut self.incremental_state[self.state_index].halfmove_clock
     }
 
+    pub fn state_offset(&self) -> u8 {
+        self.incremental_state[self.state_index].state_offset
+    }
+
+    pub fn set_state_offset(&mut self, state_offset: u8) {
+        self.incremental_state[self.state_index].state_offset = state_offset;
+    }
+
     pub fn castling(&self) -> [[bool; 2]; 2] {
         self.incremental_state[self.state_index].castling
     }
@@ -60,6 +73,63 @@ impl Position {
         self.incremental_state[self.state_index].captured = captured;
     }
 
+    pub fn zobrist(&self) -> u64 {
+        self.incremental_state[self.state_index].zobrist
+    }
+
+    pub fn set_zobrist(&mut self, zobrist: u64) {
+        self.incremental_state[self.state_index].zobrist = zobrist;
+    }
+
+    pub fn is_in_check(&self, color: PieceColor) -> bool {
+        is_attacking(
+            self.bitboards[color][PieceType::King].trailing_zeros() as u8,
+            self,
+            !color,
+        )
+    }
+
+    pub fn check_draws(&self) -> bool {
+        if self.halfmove_clock() >= 100 {
+            return true;
+        }
+
+        let start = self.state_index - (self.halfmove_clock() - self.state_offset()) as usize;
+        for x in &self.incremental_state[start..=self.state_index] {
+            let mut n = 0;
+            for y in &self.incremental_state[start..=self.state_index] {
+                if x.zobrist == y.zobrist {
+                    n += 1;
+                }
+
+                if n >= 3 {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
+    pub fn clear_incremental(&mut self) {
+        let start = self.state_index - (self.halfmove_clock() - self.state_offset()) as usize;
+        dbg!(start, self.state_index);
+        if start == 0 {
+            return;
+        }
+        for x in start..=self.state_index {
+            self.incremental_state[x - start] = self.incremental_state[x];
+        }
+        self.state_index -= start;
+    }
+
+    pub fn calc_zobrist(&mut self) -> u64 {
+        let hash = hash(self);
+        self.set_zobrist(hash);
+
+        hash
+    }
+
     pub fn make_move(&mut self, m: Move) {
         let to_move = self.to_move;
         self.incremental_state[self.state_index + 1] = self.incremental_state[self.state_index];
@@ -68,6 +138,13 @@ impl Position {
         let mut piece = self.mailbox[m.from() as usize];
         let from_bit = 1u64 << m.from();
         let to_bit = 1u64 << m.to();
+
+        if m.is_capture() || piece.ty == PieceType::Pawn {
+            *self.halfmove_clock_mut() = 0;
+            self.set_state_offset(0);
+        } else {
+            *self.halfmove_clock_mut() += 1;
+        }
 
         // captures
         if m.code() == Code::EnPassantCapture {
@@ -151,7 +228,6 @@ impl Position {
         self.bitboards[self.to_move][PieceType::Empty] ^= from_bit | to_bit;
 
         self.fullmove_clock += self.to_move as u16;
-        *self.halfmove_clock_mut() += 1;
 
         self.to_move = !self.to_move;
     }
@@ -336,7 +412,7 @@ impl Position {
         let halfmove_clock = parts.get(4).unwrap_or(&"0").parse().ok()?;
         let fullmove_clock = parts.get(5).unwrap_or(&"1").parse().ok()?;
 
-        Some(Self {
+        let mut x = Self {
             bitboards,
             mailbox,
             to_move,
@@ -345,9 +421,15 @@ impl Position {
                 en_passant,
                 castling,
                 halfmove_clock,
+                state_offset: halfmove_clock,
                 captured: None,
+                zobrist: 0,
             }; 256],
             state_index: 0,
-        })
+        };
+
+        x.set_zobrist(hash(&x));
+
+        Some(x)
     }
 }
