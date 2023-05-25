@@ -1,5 +1,5 @@
 use crate::{
-    movegen::{self, movegen, Move},
+    movegen::{self, movegen, Move, Moves},
     position::{piece::PieceColor, Position},
     uci::Limits,
 };
@@ -108,7 +108,7 @@ pub fn start_search(position: &mut Position, time: Limits) -> Move {
             if best.0.abs() == CHECKMATE {
                 print!(
                     "info depth {depth} score mate {} time {} nodes {nodes} nps {} pv {:?}",
-                    depth as i32 * best.0.signum(),
+                    depth.div_ceil(2) as i32 * best.0.signum(),
                     tc.start.elapsed().as_millis(),
                     (nodes as f64 / tc.start.elapsed().as_secs_f64()) as u64,
                     best.1
@@ -158,7 +158,7 @@ fn alpha_beta(
         return Some((evaluate(position), vec![]));
     }
     match movegen(position) {
-        movegen::Moves::PseudoLegalMoves(moves) => {
+        Moves::PseudoLegalMoves(moves) => {
             let mut pv = vec![];
             let in_check = position.is_in_check(position.to_move);
             for m in moves {
@@ -200,24 +200,14 @@ fn alpha_beta(
             }
 
             if pv.is_empty() && in_check {
-                if position.to_move == PieceColor::White {
-                    Some((-CHECKMATE, vec![]))
-                } else {
-                    Some((CHECKMATE, vec![]))
-                }
-            } else if pv.is_empty() {
+                Some((-CHECKMATE, vec![]))
+            } else if alpha == MIN_EVAL {
                 Some((0, vec![]))
             } else {
                 Some((alpha, pv))
             }
         }
-        movegen::Moves::Stalemate => Some((0, vec![])),
-        movegen::Moves::Checkmate => {
-            if position.to_move == PieceColor::White {
-                Some((-CHECKMATE, vec![]))
-            } else {
-                Some((CHECKMATE, vec![]))
-            }
-        }
+        Moves::Stalemate => Some((0, vec![])),
+        Moves::Checkmate => Some((-CHECKMATE, vec![])), 
     }
 }
