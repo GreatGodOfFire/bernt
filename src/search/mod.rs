@@ -1,6 +1,9 @@
 use crate::{
     movegen::{self, movegen, Move, Moves},
-    position::{piece::PieceColor, Position},
+    position::{
+        tt::{TTIndex, TTIndexType},
+        Position,
+    },
     uci::Limits,
 };
 
@@ -75,31 +78,31 @@ pub fn start_search(position: &mut Position, time: Limits) -> Move {
             for &m in &legal_moves {
                 position.make_move(m);
 
-                if !position.is_in_check(!position.to_move) {
-                    position.calc_zobrist();
-                    if position.check_draws() {
-                        if best.0 < 0 {
-                            best.0 = 0;
-                            best.1 = m;
-                            best.2 = vec![];
-                        }
+                nodes += 1;
+                position.calc_zobrist();
 
-                        position.unmake_move(m);
-                        continue;
+                if position.check_draws() {
+                    if best.0 < 0 {
+                        best.0 = 0;
+                        best.1 = m;
+                        best.2 = vec![];
                     }
 
-                    if let Some((score, pv)) =
-                        alpha_beta(MIN_EVAL, MAX_EVAL, depth - 1, position, &tc, &mut nodes)
-                    {
-                        let score = -score;
-                        if score > best.0 {
-                            best.0 = score;
-                            best.1 = m;
-                            best.2 = pv;
-                        }
-                    } else {
-                        return previous_best.1;
+                    position.unmake_move(m);
+                    continue;
+                }
+
+                if let Some((score, pv)) =
+                    alpha_beta(MIN_EVAL, MAX_EVAL, depth - 1, position, &tc, &mut nodes)
+                {
+                    let score = -score;
+                    if score > best.0 {
+                        best.0 = score;
+                        best.1 = m;
+                        best.2 = pv;
                     }
+                } else {
+                    return previous_best.1;
                 }
 
                 position.unmake_move(m);
@@ -147,7 +150,7 @@ const MIN_EVAL: i32 = -2000000000;
 const CHECKMATE: i32 = 100000;
 
 fn alpha_beta(
-    mut alpha: i32,
+    alpha: i32,
     beta: i32,
     depth: u8,
     position: &mut Position,
@@ -157,41 +160,76 @@ fn alpha_beta(
     if depth == 0 {
         return Some((evaluate(position), vec![]));
     }
+
     match movegen(position) {
         Moves::PseudoLegalMoves(moves) => {
+            let mut score = alpha;
+
+            if let Some((_m, eval, d, ty)) = position
+                .tt
+                .lookup(position.zobrist(), position.fullmove_clock)
+            {
+                if d >= depth {
+                    if ty == TTIndexType::Exact
+                        || ty == TTIndexType::Lower && eval >= beta
+                        || ty == TTIndexType::Upper && alpha >= eval
+                    {
+                        return Some((eval, vec![]));
+                    }
+                }
+            }
+
             let mut pv = vec![];
+            let mut legal_moves_count = 0;
             let in_check = position.is_in_check(position.to_move);
             for m in moves {
                 position.make_move(m);
 
                 if !position.is_in_check(!position.to_move) {
+                    legal_moves_count += 1;
+
                     *nodes += 1;
                     if *nodes % 4096 == 0 {
                         if tc.stop() {
                             return None;
                         }
                     }
+
                     position.calc_zobrist();
                     if position.check_draws() {
                         if 0 >= beta {
                             position.unmake_move(m);
-                            return Some((0, vec![m]));
+                            return Some((beta, vec![m]));
                         }
-                        if 0 > alpha {
-                            alpha = 0;
+                        if 0 > score {
+                            score = 0;
                             pv = vec![m];
                         }
-                    }
-                    let (score, mut _pv) =
-                        alpha_beta(-beta, -alpha, depth - 1, position, tc, nodes)?;
-                    _pv.push(m);
-                    let score = -score;
-                    if score >= beta {
                         position.unmake_move(m);
+                        continue;
+                    }
+
+                    let bitboards = position.bitboards.clone();
+                    let (s, mut _pv) = alpha_beta(-beta, -score, depth - 1, position, tc, nodes)?;
+                    if bitboards != position.bitboards {
+                        panic!();
+                    }
+                    _pv.push(m);
+                    let s = -s;
+                    if s >= beta {
+                        position.unmake_move(m);
+                        position.tt.insert(TTIndex::new(
+                            position.zobrist(),
+                            m,
+                            s,
+                            depth,
+                            position.fullmove_clock,
+                            TTIndexType::Lower,
+                        ));
                         return Some((beta, _pv));
                     }
-                    if score > alpha {
-                        alpha = score;
+                    if s > score {
+                        score = s;
                         pv = _pv;
                     }
                 }
@@ -199,15 +237,33 @@ fn alpha_beta(
                 position.unmake_move(m);
             }
 
-            if pv.is_empty() && in_check {
-                Some((-CHECKMATE, vec![]))
-            } else if alpha == MIN_EVAL {
-                Some((0, vec![]))
+            if legal_moves_count == 0 && in_check {
+                Some((-CHECKMATE, pv))
+            } else if legal_moves_count == 0 {
+                Some((0, pv))
             } else {
-                Some((alpha, pv))
+                if !pv.is_empty() {
+                    let ty = if score >= beta {
+                        TTIndexType::Lower
+                    } else if score <= alpha {
+                        TTIndexType::Upper
+                    } else {
+                        TTIndexType::Exact
+                    };
+
+                    position.tt.insert(TTIndex::new(
+                        position.zobrist(),
+                        pv[0],
+                        score,
+                        depth,
+                        position.fullmove_clock,
+                        ty,
+                    ));
+                }
+                Some((score, pv))
             }
         }
         Moves::Stalemate => Some((0, vec![])),
-        Moves::Checkmate => Some((-CHECKMATE, vec![])), 
+        Moves::Checkmate => Some((-CHECKMATE, vec![])),
     }
 }

@@ -22,7 +22,7 @@ pub mod pawn;
 pub mod sliding;
 pub mod util;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct Move(u16);
 
 impl Move {

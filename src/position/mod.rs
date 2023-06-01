@@ -3,20 +3,25 @@ use crate::{
     zobrist::hash,
 };
 
-use self::piece::{
-    Piece, PieceColor,
-    PieceType::{self, *},
+use self::{
+    piece::{
+        Piece, PieceColor,
+        PieceType::{self, *},
+    },
+    tt::TranspositionTable,
 };
 
+mod fen;
 pub mod piece;
+pub mod tt;
 
-#[derive(Debug, Clone)]
 pub struct Position {
     pub bitboards: [[u64; 7]; 2],
     pub mailbox: [Piece; 64],
     pub to_move: PieceColor,
 
-    fullmove_clock: u16,
+    pub fullmove_clock: u16,
+    pub tt: TranspositionTable,
 
     incremental_state: [State; 256],
     state_index: usize,
@@ -33,54 +38,6 @@ struct State {
 }
 
 impl Position {
-    pub fn en_passant(&self) -> i8 {
-        self.incremental_state[self.state_index].en_passant
-    }
-
-    pub fn set_en_passant(&mut self, en_passant: i8) {
-        self.incremental_state[self.state_index].en_passant = en_passant;
-    }
-
-    pub fn halfmove_clock(&self) -> u8 {
-        self.incremental_state[self.state_index].halfmove_clock
-    }
-
-    pub fn halfmove_clock_mut(&mut self) -> &mut u8 {
-        &mut self.incremental_state[self.state_index].halfmove_clock
-    }
-
-    pub fn state_offset(&self) -> u8 {
-        self.incremental_state[self.state_index].state_offset
-    }
-
-    pub fn set_state_offset(&mut self, state_offset: u8) {
-        self.incremental_state[self.state_index].state_offset = state_offset;
-    }
-
-    pub fn castling(&self) -> [[bool; 2]; 2] {
-        self.incremental_state[self.state_index].castling
-    }
-
-    pub fn castling_mut(&mut self) -> &mut [[bool; 2]; 2] {
-        &mut self.incremental_state[self.state_index].castling
-    }
-
-    pub fn captured(&self) -> Option<PieceType> {
-        self.incremental_state[self.state_index].captured
-    }
-
-    pub fn set_captured(&mut self, captured: Option<PieceType>) {
-        self.incremental_state[self.state_index].captured = captured;
-    }
-
-    pub fn zobrist(&self) -> u64 {
-        self.incremental_state[self.state_index].zobrist
-    }
-
-    pub fn set_zobrist(&mut self, zobrist: u64) {
-        self.incremental_state[self.state_index].zobrist = zobrist;
-    }
-
     pub fn is_in_check(&self, color: PieceColor) -> bool {
         is_attacking(
             self.bitboards[color][PieceType::King].trailing_zeros() as u8,
@@ -157,6 +114,7 @@ impl Position {
             let sq_bit = 1 << sq;
             self.bitboards[target] ^= sq_bit;
             self.bitboards[!self.to_move][PieceType::Empty] ^= sq_bit;
+            self.mailbox[sq as usize].ty = PieceType::Empty;
             self.set_captured(None);
         } else if m.is_capture() {
             let target = self.mailbox[m.to() as usize];
@@ -301,134 +259,55 @@ impl Position {
             self.make_move(m);
         }
     }
+}
 
-    pub fn startpos() -> Self {
-        Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
+// Getters and setters
+impl Position {
+    pub fn en_passant(&self) -> i8 {
+        self.incremental_state[self.state_index].en_passant
     }
 
-    pub fn from_fen(fen: &str) -> Option<Self> {
-        let mut bitboards = [[0u64; 7]; 2];
-        let mut mailbox = [Piece::EMPTY; 64];
+    pub fn set_en_passant(&mut self, en_passant: i8) {
+        self.incremental_state[self.state_index].en_passant = en_passant;
+    }
 
-        let parts = fen.split(' ').collect::<Vec<_>>();
-        if parts.len() < 4 {
-            return None;
-        }
-        let ranks = parts[0].split('/');
-        for (i, rank) in ranks.enumerate() {
-            let i = 7 - i;
-            if rank == "8" {
-                continue;
-            }
+    pub fn halfmove_clock(&self) -> u8 {
+        self.incremental_state[self.state_index].halfmove_clock
+    }
 
-            let mut j = 0;
-            let mut idx = 0;
-            let chars = rank.chars().collect::<Vec<_>>();
-            while j < 8 {
-                let c = chars[idx];
+    pub fn halfmove_clock_mut(&mut self) -> &mut u8 {
+        &mut self.incremental_state[self.state_index].halfmove_clock
+    }
 
-                match c {
-                    '1' => j += 1,
-                    '2' => j += 2,
-                    '3' => j += 3,
-                    '4' => j += 4,
-                    '5' => j += 5,
-                    '6' => j += 6,
-                    '7' => j += 7,
-                    'P' | 'N' | 'B' | 'R' | 'Q' | 'K' | 'p' | 'n' | 'b' | 'r' | 'q' | 'k' => {
-                        let ty = match c.to_ascii_lowercase() {
-                            'p' => Pawn,
-                            'n' => Knight,
-                            'b' => Bishop,
-                            'r' => Rook,
-                            'q' => Queen,
-                            'k' => King,
-                            _ => unreachable!(),
-                        };
-                        let color = match c.is_lowercase() {
-                            true => PieceColor::Black,
-                            false => PieceColor::White,
-                        };
+    pub fn state_offset(&self) -> u8 {
+        self.incremental_state[self.state_index].state_offset
+    }
 
-                        let piece = Piece { ty, color };
-                        let square = i * 8 + j as usize;
-                        mailbox[square] = piece;
-                        bitboards[piece] |= 1 << square;
+    pub fn set_state_offset(&mut self, state_offset: u8) {
+        self.incremental_state[self.state_index].state_offset = state_offset;
+    }
 
-                        j += 1;
-                    }
-                    _ => return None,
-                }
-                idx += 1;
-            }
-        }
-        bitboards[PieceColor::White][PieceType::Empty] = !bitboards[0].iter().fold(0, |x, y| x | y);
-        bitboards[PieceColor::Black][PieceType::Empty] = !bitboards[1].iter().fold(0, |x, y| x | y);
+    pub fn castling(&self) -> [[bool; 2]; 2] {
+        self.incremental_state[self.state_index].castling
+    }
 
-        let to_move = match parts[1] {
-            "w" => PieceColor::White,
-            "b" => PieceColor::Black,
-            _ => return None,
-        };
+    pub fn castling_mut(&mut self) -> &mut [[bool; 2]; 2] {
+        &mut self.incremental_state[self.state_index].castling
+    }
 
-        let castling = match parts[2] {
-            "-" => [[false; 2]; 2],
-            s => {
-                let mut castling = [[false; 2]; 2];
+    pub fn captured(&self) -> Option<PieceType> {
+        self.incremental_state[self.state_index].captured
+    }
 
-                for c in s.chars() {
-                    match c {
-                        'K' => castling[PieceColor::White][1] = true,
-                        'Q' => castling[PieceColor::White][0] = true,
-                        'k' => castling[PieceColor::Black][1] = true,
-                        'q' => castling[PieceColor::Black][0] = true,
-                        _ => return None,
-                    }
-                }
+    pub fn set_captured(&mut self, captured: Option<PieceType>) {
+        self.incremental_state[self.state_index].captured = captured;
+    }
 
-                castling
-            }
-        };
+    pub fn zobrist(&self) -> u64 {
+        self.incremental_state[self.state_index].zobrist
+    }
 
-        let en_passant = match parts[3] {
-            "-" => -1,
-            s => {
-                let chars = s.chars().collect::<Vec<char>>();
-                if chars.len() != 2 {
-                    return None;
-                }
-                let file = chars[0] as u8 - b'a';
-                let rank = chars[1] as u8 - b'1';
-
-                if file > 7 || (rank != 2 && rank != 5) {
-                    return None;
-                }
-
-                (rank * 8 + file) as i8
-            }
-        };
-
-        let halfmove_clock = parts.get(4).unwrap_or(&"0").parse().ok()?;
-        let fullmove_clock = parts.get(5).unwrap_or(&"1").parse().ok()?;
-
-        let mut x = Self {
-            bitboards,
-            mailbox,
-            to_move,
-            fullmove_clock,
-            incremental_state: [State {
-                en_passant,
-                castling,
-                halfmove_clock,
-                state_offset: halfmove_clock,
-                captured: None,
-                zobrist: 0,
-            }; 256],
-            state_index: 0,
-        };
-
-        x.set_zobrist(hash(&x));
-
-        Some(x)
+    pub fn set_zobrist(&mut self, zobrist: u64) {
+        self.incremental_state[self.state_index].zobrist = zobrist;
     }
 }

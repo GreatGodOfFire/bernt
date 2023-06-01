@@ -27,7 +27,7 @@ fn main() {
                     UciPosition::Fen(fen) => Position::from_fen(&fen).unwrap(),
                     UciPosition::Startpos => Position::startpos(),
                 };
-                for moves in moves.chunks(255) {
+                for moves in moves.chunks(100) {
                     for m in moves {
                         position.make_move_uci(m);
                         position.calc_zobrist();

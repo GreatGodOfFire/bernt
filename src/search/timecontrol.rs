@@ -14,7 +14,7 @@ impl TimeControl {
             PieceColor::Black => time.btime,
         };
         let stop = if let Some(t) = t {
-            let x = t / time.movestogo.unwrap_or(40) / 10 * 9;
+            let x = t / time.movestogo.unwrap_or(40) * 9 / 10;
             Some(Duration::from_millis(x))
         } else {
             None
