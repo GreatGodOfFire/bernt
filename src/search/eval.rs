@@ -48,40 +48,31 @@ pub fn quiesce(
         return Some(alpha);
     }
 
-    let checking = count_checking(position);
-
-    match checking {
-        0 => {
-            let captures = pseudo_legal_movegen_captures(position);
-            match captures {
-                Moves::PseudoLegalMoves(captures) => {
-                    for m in captures {
-                        position.make_move(m);
-                        if !position.is_in_check(!position.to_move) {
-                            *nodes += 1;
-                            if *nodes % 4096 == 0 {
-                                if tc.stop() {
-                                    return None;
-                                }
-                            }
-                            let eval = -quiesce(position, plies + 1, -beta, -alpha, tc, nodes)?;
-
-                            if eval >= beta {
-                                position.unmake_move(m);
-                                return Some(beta);
-                            }
-                            if eval > alpha {
-                                alpha = eval;
-                            }
+    let captures = pseudo_legal_movegen_captures(position);
+    match captures {
+        Moves::PseudoLegalMoves(captures) => {
+            for m in captures {
+                position.make_move(m);
+                if !position.is_in_check(!position.to_move) {
+                    *nodes += 1;
+                    if *nodes % 4096 == 0 {
+                        if tc.stop() {
+                            return None;
                         }
+                    }
+                    let eval = -quiesce(position, plies + 1, -beta, -alpha, tc, nodes)?;
+
+                    if eval >= beta {
                         position.unmake_move(m);
+                        return Some(beta);
+                    }
+                    if eval > alpha {
+                        alpha = eval;
                     }
                 }
-                _ => {}
+                position.unmake_move(m);
             }
         }
-        // TODO: try check evasion
-        1 => {}
         _ => {}
     }
 
