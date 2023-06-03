@@ -20,6 +20,15 @@ pub fn king_moves(king: u64, free_squares: u64, enemies: u64, out: &mut Vec<Move
     }
 }
 
+pub fn king_captures(king: u64, enemies: u64, out: &mut Vec<Move>) {
+    let from = king.trailing_zeros();
+    let moves = LOOKUP[from as usize];
+
+    for to in BitIter(moves & enemies) {
+        out.push(Move::new(from as u16, to as u16, Code::Capture));
+    }
+}
+
 pub fn lookup_king(king: u8) -> u64 {
     LOOKUP[king as usize]
 }

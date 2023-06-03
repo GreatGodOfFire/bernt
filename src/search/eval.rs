@@ -1,11 +1,14 @@
 use crate::{
     movegen::{
         bitboard::BitIter,
+        count_checking,
         king::lookup_king,
         knight::single_knight_moves,
         pawn::single_pawn_attacks,
+        pseudo_legal_movegen_captures,
         sliding::{single_bishop_moves, single_rook_moves},
         util::{RANK_2, RANK_7},
+        Moves,
     },
     position::{
         piece::{
@@ -16,12 +19,74 @@ use crate::{
     },
 };
 
+use super::{timecontrol::TimeControl, MAX_DEPTH};
+
 const QUEEN_WEIGHT: i32 = 900;
 const ROOK_WEIGHT: i32 = 500;
 const BISHOP_WEIGHT: i32 = 300;
 const KNIGHT_WEIGHT: i32 = 300;
 const PAWN_WEIGHT: i32 = 100;
 const MOBILITY_WEIGHT: i32 = 10;
+
+pub fn quiesce(
+    position: &mut Position,
+    plies: u8,
+    mut alpha: i32,
+    beta: i32,
+    tc: &TimeControl,
+    nodes: &mut u64,
+) -> Option<i32> {
+    let eval = evaluate(position);
+    if eval >= beta {
+        return Some(beta);
+    }
+    if alpha < eval {
+        alpha = eval;
+    }
+
+    if plies >= MAX_DEPTH {
+        return Some(alpha);
+    }
+
+    let checking = count_checking(position);
+
+    match checking {
+        0 => {
+            let captures = pseudo_legal_movegen_captures(position);
+            match captures {
+                Moves::PseudoLegalMoves(captures) => {
+                    for m in captures {
+                        position.make_move(m);
+                        if !position.is_in_check(!position.to_move) {
+                            *nodes += 1;
+                            if *nodes % 4096 == 0 {
+                                if tc.stop() {
+                                    return None;
+                                }
+                            }
+                            let eval = -quiesce(position, plies + 1, -beta, -alpha, tc, nodes)?;
+
+                            if eval >= beta {
+                                position.unmake_move(m);
+                                return Some(beta);
+                            }
+                            if eval > alpha {
+                                alpha = eval;
+                            }
+                        }
+                        position.unmake_move(m);
+                    }
+                }
+                _ => {}
+            }
+        }
+        // TODO: try check evasion
+        1 => {}
+        _ => {}
+    }
+
+    Some(alpha)
+}
 
 pub fn evaluate(position: &Position) -> i32 {
     let w = position.bitboards[0];

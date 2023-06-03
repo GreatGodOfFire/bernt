@@ -13,6 +13,16 @@ pub fn knight_moves(knights: u64, free_squares: u64, enemies: u64, out: &mut Vec
     }
 }
 
+pub fn knight_captures(knights: u64, free_squares: u64, enemies: u64, out: &mut Vec<Move>) {
+    for knight in BitIter(knights) {
+        let moves = KNIGHT_MOVES[knight as usize] & free_squares;
+
+        for m in BitIter(moves & enemies) {
+            out.push(Move::new(knight as u16, m as u16, Code::Capture));
+        }
+    }
+}
+
 pub fn single_knight_moves(knight: u8) -> u64 {
     KNIGHT_MOVES[knight as usize]
 }

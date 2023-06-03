@@ -9,10 +9,13 @@ use crate::position::{
 };
 
 use self::{
-    king::{castling_moves, king_moves, lookup_king},
-    knight::{knight_moves, single_knight_moves},
+    king::{castling_moves, king_captures, king_moves, lookup_king},
+    knight::{knight_captures, knight_moves, single_knight_moves},
     pawn::{double_pawn_moves, en_passant, pawn_attacks, single_pawn_attacks, single_pawn_moves},
-    sliding::{bishop_moves, rook_moves, single_bishop_moves, single_rook_moves},
+    sliding::{
+        bishop_captures, bishop_moves, rook_captures, rook_moves, single_bishop_moves,
+        single_rook_moves,
+    },
 };
 
 pub mod bitboard;
@@ -320,7 +323,7 @@ pub fn movegen(position: &Position) -> Moves {
     }
 }
 
-fn king_movegen(position: &Position) -> Moves {
+pub fn king_movegen(position: &Position) -> Moves {
     let mut moves = Vec::with_capacity(8);
     let to_move = position.to_move;
     let empty = position.bitboards[White][Empty] & position.bitboards[Black][Empty];
@@ -337,7 +340,7 @@ fn king_movegen(position: &Position) -> Moves {
     }
 }
 
-fn pseudo_legal_movegen(position: &Position, in_check: bool) -> Moves {
+pub fn pseudo_legal_movegen(position: &Position, in_check: bool) -> Moves {
     let to_move = position.to_move;
     let empty = position.bitboards[White][Empty] & position.bitboards[Black][Empty];
 
@@ -381,6 +384,45 @@ fn pseudo_legal_movegen(position: &Position, in_check: bool) -> Moves {
         } else {
             Moves::Stalemate
         }
+    } else {
+        Moves::PseudoLegalMoves(moves)
+    }
+}
+
+pub fn pseudo_legal_movegen_captures(position: &Position) -> Moves {
+    let to_move = position.to_move;
+
+    let player = position.bitboards[to_move];
+    let opponent = position.bitboards[!to_move];
+
+    let mut moves = Vec::with_capacity(256);
+
+    // Sliding
+    rook_captures(
+        player[Rook] | player[Queen],
+        !player[Empty],
+        !opponent[Empty],
+        &mut moves,
+    );
+    bishop_captures(
+        player[Bishop] | player[Queen],
+        !player[Empty],
+        !opponent[Empty],
+        &mut moves,
+    );
+
+    // Knights
+    knight_captures(player[Knight], player[Empty], !opponent[Empty], &mut moves);
+
+    // King
+    king_captures(player[King], !opponent[Empty], &mut moves);
+
+    // Pawns
+    pawn_attacks(player[Pawn], to_move, !opponent[Empty], &mut moves);
+    en_passant(player[Pawn], to_move, position.en_passant(), &mut moves);
+
+    if moves.is_empty() {
+        Moves::Stalemate
     } else {
         Moves::PseudoLegalMoves(moves)
     }

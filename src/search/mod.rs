@@ -7,7 +7,10 @@ use crate::{
     uci::Limits,
 };
 
-use self::{eval::evaluate, timecontrol::TimeControl};
+use self::{
+    eval::{evaluate, quiesce},
+    timecontrol::TimeControl,
+};
 
 mod eval;
 mod timecontrol;
@@ -22,12 +25,14 @@ pub fn start_search(position: &mut Position, time: Limits) -> Move {
 
         let mut best = (MIN_EVAL, Move::null(), vec![]);
         let max_depth = time.depth.unwrap_or(MAX_DEPTH);
+        let mut nodes = 0;
 
         // first depth 1
         for &m in &moves {
             position.make_move(m);
 
             if !position.is_in_check(!position.to_move) {
+                nodes += 1;
                 legal_moves.push(m);
                 position.calc_zobrist();
                 if position.check_draws() {
@@ -48,6 +53,16 @@ pub fn start_search(position: &mut Position, time: Limits) -> Move {
             }
 
             position.unmake_move(m);
+        }
+
+        if best.0.abs() == CHECKMATE {
+            println!(
+                "info depth 1 score mate 1 time {} nodes {nodes} nps {} pv {:?}",
+                tc.start.elapsed().as_millis(),
+                (nodes as f64 / tc.start.elapsed().as_secs_f64()) as u64,
+                best.1
+            );
+            return best.1;
         }
         println!(
             "info depth 1 score cp {} time {} nodes {} nps {} pv {:?}",
@@ -73,8 +88,6 @@ pub fn start_search(position: &mut Position, time: Limits) -> Move {
             previous_best = best.clone();
             best.0 = MIN_EVAL;
 
-            let mut nodes = 0;
-
             for &m in &legal_moves {
                 position.make_move(m);
 
@@ -93,7 +106,7 @@ pub fn start_search(position: &mut Position, time: Limits) -> Move {
                 }
 
                 if let Some((score, pv)) =
-                    alpha_beta(MIN_EVAL, MAX_EVAL, depth - 1, position, &tc, &mut nodes)
+                    alpha_beta(position, MIN_EVAL, MAX_EVAL, 1, depth - 1, &tc, &mut nodes)
                 {
                     let score = -score;
                     if score > best.0 {
@@ -150,15 +163,16 @@ const MIN_EVAL: i32 = -2000000000;
 const CHECKMATE: i32 = 100000;
 
 fn alpha_beta(
+    position: &mut Position,
     alpha: i32,
     beta: i32,
+    plies: u8,
     depth: u8,
-    position: &mut Position,
     tc: &TimeControl,
     nodes: &mut u64,
 ) -> Option<(i32, Vec<Move>)> {
     if depth == 0 {
-        return Some((evaluate(position), vec![]));
+        return Some((quiesce(position, plies, alpha, beta, tc, nodes)?, vec![]));
     }
 
     match movegen(position) {
@@ -209,11 +223,8 @@ fn alpha_beta(
                         continue;
                     }
 
-                    let bitboards = position.bitboards.clone();
-                    let (s, mut _pv) = alpha_beta(-beta, -score, depth - 1, position, tc, nodes)?;
-                    if bitboards != position.bitboards {
-                        panic!();
-                    }
+                    let (s, mut _pv) =
+                        alpha_beta(position, -beta, -score, plies + 1, depth - 1, tc, nodes)?;
                     _pv.push(m);
                     let s = -s;
                     if s >= beta {
