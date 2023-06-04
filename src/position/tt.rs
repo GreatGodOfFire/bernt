@@ -2,26 +2,34 @@ use std::mem::size_of;
 
 use crate::movegen::Move;
 
-const DEFAULT_HASH_SIZE: usize = 16000000;
+pub const DEFAULT_HASH_SIZE: usize = 16;
 
 fn tt_len(size: usize) -> usize {
-    size / size_of::<TTIndex>()
+    size * 16000000 / size_of::<TTIndex>()
 }
 
-pub struct TranspositionTable(Vec<TTIndex>);
+pub struct TranspositionTable(Vec<TTIndex>, usize);
 
 impl TranspositionTable {
-    pub fn new(size: usize) -> Self {
-        Self(vec![TTIndex::default(); tt_len(size)])
+    pub fn new_default() -> Self {
+        Self(vec![TTIndex::default(); tt_len(DEFAULT_HASH_SIZE)], 0)
     }
 
-    pub fn new_default() -> Self {
-        Self(vec![TTIndex::default(); tt_len(DEFAULT_HASH_SIZE)])
+    pub fn set_size(&mut self, size: usize) {
+        self.0 = vec![TTIndex::default(); tt_len(size)];
+        self.1 = 0;
+    }
+
+    pub fn hashfull(&self) -> usize {
+        (self.1 * 1000) / self.0.len()
     }
 
     pub fn insert(&mut self, index: TTIndex) {
         let i = index.zobrist as usize % self.0.len();
         let old_index = &mut self.0[i];
+        if old_index.depth == 0 {
+            self.1 += 1;
+        }
         if old_index.age < index.age || old_index.depth < index.depth {
             *old_index = index;
         }

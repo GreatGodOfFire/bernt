@@ -80,7 +80,15 @@ fn try_recv() -> Option<UciMessage> {
 
             Some(UciMessage::Go(time))
         }
-        Some("stop") => Some(UciMessage::Stop),
+        Some("quit") => Some(UciMessage::Quit),
+        Some("setoption") => {
+            let remainder = args.remainder()?;
+            let (name, value) = remainder.split_once(" value ")?;
+            match name {
+                "Hash" => Some(UciMessage::Setoption(UciOption::Hash(value.parse().ok()?))),
+                _ => None,
+            }
+        }
         Some(x) => {
             println!("Unknown command: {x}");
             None
@@ -89,32 +97,19 @@ fn try_recv() -> Option<UciMessage> {
     }
 }
 
-pub fn send(m: UciMessage) {
-    match m {
-        UciMessage::IdName(name) => println!("id name {name}"),
-        UciMessage::IdAuthor(author) => println!("id author {author}"),
-        UciMessage::UciOk => println!("uciok"),
-        UciMessage::ReadyOk => println!("readyok"),
-        _ => {}
-    }
-}
-
 pub enum UciMessage {
     Uci,
-    IdName(String),
-    IdAuthor(String),
-    UciOk,
-
     IsReady,
-    ReadyOk,
-
     UciNewGame,
     Position(UciPosition, Vec<String>),
     Go(Limits),
-
     Perft(u8),
+    Quit,
+    Setoption(UciOption),
+}
 
-    Stop,
+pub enum UciOption {
+    Hash(usize),
 }
 
 pub struct Limits {

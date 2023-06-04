@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{
     movegen::{self, movegen, Move, Moves},
     position::{
@@ -64,13 +66,14 @@ pub fn start_search(position: &mut Position, time: Limits) -> Move {
             );
             return best.1;
         }
-        println!(
-            "info depth 1 score cp {} time {} nodes {} nps {} pv {:?}",
+        print_info(
+            1,
             best.0,
-            tc.start.elapsed().as_millis(),
-            legal_moves.len(),
-            (legal_moves.len() as f64 / tc.start.elapsed().as_secs_f64()) as u64,
-            best.1
+            best.1,
+            &best.2,
+            tc.start.elapsed(),
+            nodes,
+            position.tt.hashfull(),
         );
 
         let idx = legal_moves.iter().position(|&m| m == best.1).unwrap();
@@ -135,18 +138,16 @@ pub fn start_search(position: &mut Position, time: Limits) -> Move {
                 println!();
                 return best.1;
             }
-
-            print!(
-                "info depth {depth} score cp {} time {} nodes {nodes} nps {} pv {:?}",
+            print_info(
+                depth,
                 best.0,
-                tc.start.elapsed().as_millis(),
-                (nodes as f64 / tc.start.elapsed().as_secs_f64()) as u64,
-                best.1
+                best.1,
+                &best.2,
+                tc.start.elapsed(),
+                nodes,
+                position.tt.hashfull(),
             );
-            for m in best.2.iter().rev() {
-                print!(" {m:?}");
-            }
-            println!();
+
             depth += 1;
             let idx = legal_moves.iter().position(|&m| m == best.1).unwrap();
             legal_moves.swap(idx, 0);
@@ -156,6 +157,28 @@ pub fn start_search(position: &mut Position, time: Limits) -> Move {
     } else {
         unreachable!()
     }
+}
+
+fn print_info(
+    depth: u8,
+    score: i32,
+    m: Move,
+    pv: &[Move],
+    elapsed: Duration,
+    nodes: u64,
+    hashfull: usize,
+) {
+    print!(
+        "info depth {depth} score cp {} time {} hashfull {hashfull} nodes {nodes} nps {} pv {:?}",
+        score,
+        elapsed.as_millis(),
+        (nodes as f64 / elapsed.as_secs_f64()) as u64,
+        m,
+    );
+    for m in pv.iter().rev() {
+        print!(" {m:?}");
+    }
+    println!();
 }
 
 const MAX_EVAL: i32 = 2000000000;

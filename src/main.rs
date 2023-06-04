@@ -6,21 +6,27 @@ fn main() {
     use std::time::Instant;
 
     use bernt::{
+        position::tt::DEFAULT_HASH_SIZE,
         search::start_search,
-        uci::{recv, send, UciMessage, UciPosition},
+        uci::{recv, UciMessage, UciOption, UciPosition},
     };
 
     let mut position = Position::startpos();
+    let mut hash_size = DEFAULT_HASH_SIZE;
 
     loop {
         match recv() {
             UciMessage::Uci => {
-                send(UciMessage::IdName("Bernt".to_owned()));
-                send(UciMessage::IdName("GreatGodOfFire".to_owned()));
-                send(UciMessage::UciOk);
+                println!("id name Bernt {}", env!("CARGO_PKG_VERSION"));
+                println!("id author GreatGodOfFire");
+
+                println!("option name Hash type spin default 16 min 1 max 1048576");
+
+                println!("uciok");
             }
             UciMessage::UciNewGame => {
                 position = Position::startpos();
+                position.tt.set_size(hash_size);
             }
             UciMessage::Position(pos, moves) => {
                 position = match pos {
@@ -46,13 +52,18 @@ fn main() {
                     (nodes as f32 / instant.elapsed().as_secs_f32()).round() as u64
                 );
             }
-            UciMessage::IsReady => send(UciMessage::ReadyOk),
+            UciMessage::IsReady => println!("readyok"),
+            UciMessage::Setoption(option) => match option {
+                UciOption::Hash(hash) => {
+                    hash_size = hash;
+                    position.tt.set_size(hash_size);
+                }
+            },
             UciMessage::Go(time) => {
                 let m = start_search(&mut position, time);
                 println!("bestmove {m:?}");
             }
-            UciMessage::Stop => break,
-            _ => (),
+            UciMessage::Quit => break,
         }
     }
 }
