@@ -183,13 +183,12 @@ fn alpha_beta(
                 .tt
                 .lookup(position.zobrist(), position.fullmove_clock)
             {
-                if d >= depth {
-                    if ty == TTIndexType::Exact
+                if d >= depth
+                    && (ty == TTIndexType::Exact
                         || ty == TTIndexType::Lower && eval >= beta
-                        || ty == TTIndexType::Upper && alpha >= eval
-                    {
-                        return Some((eval, vec![]));
-                    }
+                        || ty == TTIndexType::Upper && alpha >= eval)
+                {
+                    return Some((eval, vec![]));
                 }
             }
 
@@ -203,10 +202,8 @@ fn alpha_beta(
                     legal_moves_count += 1;
 
                     *nodes += 1;
-                    if *nodes % 4096 == 0 {
-                        if tc.stop() {
-                            return None;
-                        }
+                    if *nodes % 4096 == 0 && tc.stop() {
+                        return None;
                     }
 
                     position.calc_zobrist();
