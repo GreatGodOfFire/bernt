@@ -9,12 +9,18 @@ pub struct TimeControl {
 
 impl TimeControl {
     pub fn new(time: &Limits, color: PieceColor) -> Self {
-        let t = match color {
-            PieceColor::White => time.wtime,
-            PieceColor::Black => time.btime,
+        let (t, inc) = match color {
+            PieceColor::White => (time.wtime, time.winc),
+            PieceColor::Black => (time.btime, time.binc),
         };
         let stop = if let Some(t) = t {
-            let x = t / time.movestogo.unwrap_or(40) * 9 / 10;
+            let extra = t - inc.unwrap_or(0);
+            // lets hope 20 ms is enough
+            let safety_margin = 20;
+            let max = t - safety_margin;
+
+            let x = max.min(inc.unwrap_or(0) + extra / time.movestogo.unwrap_or(30));
+
             Some(Duration::from_millis(x))
         } else {
             None
