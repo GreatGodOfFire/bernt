@@ -13,15 +13,15 @@ impl Piece {
     };
 }
 
-impl<const N: usize, const M: usize> Index<Piece> for [[u64; N]; M] {
-    type Output = u64;
+impl<T, const N: usize, const M: usize> Index<Piece> for [[T; N]; M] {
+    type Output = T;
 
     fn index(&self, index: Piece) -> &Self::Output {
         &self[index.color][index.ty]
     }
 }
 
-impl<const N: usize, const M: usize> IndexMut<Piece> for [[u64; N]; M] {
+impl<T, const N: usize, const M: usize> IndexMut<Piece> for [[T; N]; M] {
     fn index_mut(&mut self, index: Piece) -> &mut Self::Output {
         &mut self[index.color][index.ty]
     }
