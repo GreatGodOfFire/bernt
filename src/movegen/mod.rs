@@ -105,7 +105,7 @@ impl Move {
                 _ => {}
             }
 
-            if to as i8 == position.en_passant() {
+            if to as i8 == position.en_passant() && piece.ty == PieceType::Pawn {
                 return Some(Move::new(from, to, Code::EnPassantCapture));
             }
 
