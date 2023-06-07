@@ -34,10 +34,6 @@ pub fn quiesce(
         for m in captures {
             position.make_move(m);
             if !position.is_in_check(!position.to_move) {
-                *nodes += 1;
-                if *nodes % 4096 == 0 && tc.stop() {
-                    return None;
-                }
                 let eval = -quiesce(position, plies + 1, -beta, -alpha, tc, nodes)?;
 
                 if eval >= beta {

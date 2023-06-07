@@ -35,10 +35,10 @@ impl TranspositionTable {
         }
     }
 
-    pub fn lookup(&mut self, zobrist: u64, age: u16) -> Option<(Move, i32, u8, TTIndexType)> {
+    pub fn lookup(&mut self, zobrist: u64) -> Option<(Move, i32, u8, TTIndexType)> {
         let i = zobrist as usize % self.0.len();
         let index = &self.0[i];
-        if index.zobrist == zobrist && index.age == age {
+        if index.zobrist == zobrist {
             Some((index.best, index.eval, index.depth, index.ty))
         } else {
             None

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::{
-    movegen::{self, movegen, Move, Moves},
+    movegen::{self, movegen, ordering::OrderedMoves, Move, Moves},
     position::{
         tt::{TTIndex, TTIndexType},
         Position,
@@ -17,7 +17,7 @@ use self::{
 mod eval;
 mod timecontrol;
 
-const MAX_DEPTH: u8 = 10;
+const MAX_DEPTH: u8 = 20;
 
 pub fn start_search(position: &mut Position, time: Limits) -> Move {
     if let movegen::Moves::PseudoLegalMoves(moves) = movegen(position) {
@@ -57,6 +57,10 @@ pub fn start_search(position: &mut Position, time: Limits) -> Move {
             position.unmake_move(m);
         }
 
+        if legal_moves.len() == 1 {
+            return legal_moves[0];
+        }
+
         if best.0.abs() == CHECKMATE {
             println!(
                 "info depth 1 score mate 1 time {} nodes {nodes} nps {} pv {:?}",
@@ -76,22 +80,22 @@ pub fn start_search(position: &mut Position, time: Limits) -> Move {
             position.tt.hashfull(),
         );
 
-        let idx = legal_moves.iter().position(|&m| m == best.1).unwrap();
-        legal_moves.swap(idx, 0);
-
         let mut depth = 2;
 
-        let mut previous_best;
-
-        if legal_moves.len() == 1 {
-            return legal_moves[0];
-        }
+        let mut previous_best = position
+            .tt
+            .lookup(position.zobrist())
+            .map(|x| x.0)
+            .unwrap_or(Move::null());
 
         while !tc.stop() && depth <= max_depth {
-            previous_best = best.clone();
+            let legal_moves = OrderedMoves::new(&legal_moves, position, previous_best);
+            nodes = 0;
+
+            previous_best = best.1;
             best.0 = MIN_EVAL;
 
-            for &m in &legal_moves {
+            for m in legal_moves {
                 position.make_move(m);
 
                 nodes += 1;
@@ -118,7 +122,7 @@ pub fn start_search(position: &mut Position, time: Limits) -> Move {
                         best.2 = pv;
                     }
                 } else {
-                    return previous_best.1;
+                    return previous_best;
                 }
 
                 position.unmake_move(m);
@@ -149,8 +153,6 @@ pub fn start_search(position: &mut Position, time: Limits) -> Move {
             );
 
             depth += 1;
-            let idx = legal_moves.iter().position(|&m| m == best.1).unwrap();
-            legal_moves.swap(idx, 0);
         }
 
         best.1
@@ -201,19 +203,22 @@ fn alpha_beta(
     match movegen(position) {
         Moves::PseudoLegalMoves(moves) => {
             let mut score = alpha;
+            let mut pv_move = Move::null();
 
-            if let Some((_m, eval, d, ty)) = position
-                .tt
-                .lookup(position.zobrist(), position.fullmove_clock)
-            {
+            if let Some((_m, eval, d, ty)) = position.tt.lookup(position.zobrist()) {
                 if d >= depth
                     && (ty == TTIndexType::Exact
                         || ty == TTIndexType::Lower && eval >= beta
                         || ty == TTIndexType::Upper && alpha >= eval)
                 {
                     return Some((eval, vec![]));
+                // Get PV from previous iteration
+                } else if d == depth - 1 {
+                    pv_move = _m;
                 }
             }
+
+            let moves = OrderedMoves::new(&moves, position, pv_move);
 
             let mut pv = vec![];
             let mut legal_moves_count = 0;
@@ -225,7 +230,7 @@ fn alpha_beta(
                     legal_moves_count += 1;
 
                     *nodes += 1;
-                    if *nodes % 4096 == 0 && tc.stop() {
+                    if *nodes % 2048 == 0 && tc.stop() {
                         return None;
                     }
 

@@ -21,6 +21,7 @@ use self::{
 pub mod bitboard;
 pub mod king;
 pub mod knight;
+pub mod ordering;
 pub mod pawn;
 pub mod sliding;
 pub mod util;
