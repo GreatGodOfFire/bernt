@@ -197,7 +197,7 @@ fn alpha_beta(
     nodes: &mut u64,
 ) -> Option<(i32, Vec<Move>)> {
     if depth == 0 {
-        return Some((quiesce(position, plies, alpha, beta, tc, nodes)?, vec![]));
+        return Some((quiesce(position, plies, alpha, beta), vec![]));
     }
 
     match movegen(position) {

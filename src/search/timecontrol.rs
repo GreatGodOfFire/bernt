@@ -14,12 +14,22 @@ impl TimeControl {
             PieceColor::Black => (time.btime, time.binc),
         };
         let stop = if let Some(t) = t {
-            let extra = t - inc.unwrap_or(0);
-            // lets hope 20 ms is enough
-            let safety_margin = 20;
-            let max = t - safety_margin;
+            let inc = inc.unwrap_or(0);
+            let extra = if t > inc {
+                t - inc
+            } else {
+                0
+            };
 
-            let x = max.min(inc.unwrap_or(0) + extra / time.movestogo.unwrap_or(30));
+            // lets hope 25 ms is enough
+            let safety_margin = 25;
+            let max = if t >=safety_margin {
+                t - safety_margin
+            } else {
+                0
+            };
+
+            let x = max.min(inc + extra / time.movestogo.unwrap_or(30));
 
             Some(Duration::from_millis(x))
         } else {

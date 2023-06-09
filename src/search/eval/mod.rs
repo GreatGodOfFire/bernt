@@ -7,26 +7,24 @@ mod pst;
 
 use self::pst::{EG_TABLE, MG_TABLE};
 
-use super::{timecontrol::TimeControl, MAX_DEPTH};
+use super::MAX_DEPTH;
 
 pub fn quiesce(
     position: &mut Position,
     plies: u8,
     mut alpha: i32,
     beta: i32,
-    tc: &TimeControl,
-    nodes: &mut u64,
-) -> Option<i32> {
+) -> i32 {
     let eval = evaluate(position);
     if eval >= beta {
-        return Some(beta);
+        return beta;
     }
     if alpha < eval {
         alpha = eval;
     }
 
     if plies >= MAX_DEPTH {
-        return Some(alpha);
+        return alpha;
     }
 
     let captures = pseudo_legal_movegen_captures(position);
@@ -34,11 +32,11 @@ pub fn quiesce(
         for m in captures {
             position.make_move(m);
             if !position.is_in_check(!position.to_move) {
-                let eval = -quiesce(position, plies + 1, -beta, -alpha, tc, nodes)?;
+                let eval = -quiesce(position, plies + 1, -beta, -alpha);
 
                 if eval >= beta {
                     position.unmake_move(m);
-                    return Some(beta);
+                    return beta;
                 }
                 if eval > alpha {
                     alpha = eval;
@@ -48,7 +46,7 @@ pub fn quiesce(
         }
     }
 
-    Some(alpha)
+    alpha
 }
 
 pub fn evaluate(position: &Position) -> i32 {

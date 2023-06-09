@@ -1,4 +1,4 @@
-use crate::position::{Position, piece::PieceType};
+use crate::position::Position;
 
 use super::{Move, Code};
 
