@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+members = ["bernt-position", "bernt-movegen", "bernt-eval", "bernt", "bernt-tuning"]
+
+[profile.release]
+panic = 'abort'
+lto = true
+codegen-units = 1
+strip = true
