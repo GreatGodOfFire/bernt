@@ -1,5 +1,3 @@
-#![feature(const_trait_impl)]
-
 use std::{fmt::Display, mem};
 
 use bitboard::Bitboard;
