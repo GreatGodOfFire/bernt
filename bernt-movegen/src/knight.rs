@@ -1,38 +1,37 @@
-use bernt_position::{bitboard::Bitboard, Move, MoveFlags};
+use bernt_position::{bitboard::BitIter, Move, MoveFlags};
 
 use crate::{flags, MoveList};
 
 pub fn knight_moves<const FLAGS: u8>(
-    knights: Bitboard,
-    free_squares: Bitboard,
-    enemies: Bitboard,
+    knights: u64,
+    free_squares: u64,
+    enemies: u64,
     movelist: &mut MoveList,
 ) {
-    for knight in knights {
-        let moves = single_knight_moves(knight) & free_squares;
-
+    for knight in BitIter(knights) {
+        let moves = KNIGHT_MOVES[knight as usize] & free_squares;
         if FLAGS & flags::QUIET != 0 {
-            for to in moves & !enemies {
-                movelist.add(Move::new(knight, to, MoveFlags::Quiet));
+            for m in BitIter(moves & !enemies) {
+                movelist.add(Move::new(knight, m, MoveFlags::Quiet));
             }
         }
 
         if FLAGS & flags::CAPTURES != 0 {
-            for to in moves & enemies {
-                movelist.add(Move::new(knight, to, MoveFlags::Capture));
+            for m in BitIter(moves & enemies) {
+                movelist.add(Move::new(knight, m, MoveFlags::Capture));
             }
         }
     }
 }
 
-pub fn single_knight_moves(knight: u8) -> Bitboard {
+pub fn single_knight_moves(knight: u8) -> u64 {
     KNIGHT_MOVES[knight as usize]
 }
 
-const KNIGHT_MOVES: [Bitboard; 64] = generate_moves();
+const KNIGHT_MOVES: [u64; 64] = generate_moves();
 
-const fn generate_moves() -> [Bitboard; 64] {
-    let mut attacks = [Bitboard(0); 64];
+const fn generate_moves() -> [u64; 64] {
+    let mut attacks = [0u64; 64];
     let mut i = 0;
 
     while i < 64 {
@@ -74,7 +73,7 @@ const fn generate_moves() -> [Bitboard; 64] {
             }
         }
 
-        attacks[i] = Bitboard(attack);
+        attacks[i] = attack;
         i += 1;
     }
 

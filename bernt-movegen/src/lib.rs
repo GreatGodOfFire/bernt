@@ -1,36 +1,42 @@
 use bernt_position::{
-    bitboard::Bitboard,
     piece::{
         PieceColor::{self, *},
         PieceType::{self, *},
     },
     Move, Position,
 };
-use king::{castling_moves, king_moves, lookup_king};
-use knight::{knight_moves, single_knight_moves};
-use pawn::{pawn_moves, single_pawn_attacks};
-use sliding::{bishop_moves, rook_moves, single_bishop_moves, single_rook_moves};
 
-mod king;
-mod knight;
-mod pawn;
+use self::{
+    king::{castling_moves, king_moves, lookup_king},
+    knight::{knight_moves, single_knight_moves},
+    pawn::{double_pawn_moves, en_passant, pawn_attacks, single_pawn_attacks, single_pawn_moves},
+    sliding::{bishop_moves, rook_moves, single_bishop_moves, single_rook_moves},
+};
+
+pub mod king;
+pub mod knight;
+pub mod pawn;
 pub mod perft;
-mod sliding;
-mod util;
+pub mod sliding;
+pub mod util;
 
 pub(crate) mod flags {
     pub const QUIET: u8 = 0x1;
     pub const CAPTURES: u8 = 0x2;
     pub const PROMOTIONS: u8 = 0x4;
-    pub const ALL: u8 = 0xff;
+    pub const FRC: u8 = 0x8;
+    pub const DEFAULT: u8 = QUIET | CAPTURES | PROMOTIONS;
+    pub const DEFAULT_FRC: u8 = DEFAULT | FRC;
 }
 
+#[derive(Debug)]
 pub enum Moves {
     PseudoLegalMoves(MoveList),
     Stalemate,
     Checkmate,
 }
 
+#[derive(Debug)]
 pub struct MoveList {
     array: Box<[Move; 256]>,
     len: u8,
@@ -85,35 +91,29 @@ pub fn is_in_check(position: &Position, color: PieceColor) -> bool {
 }
 
 pub fn is_attacking(square: u8, position: &Position, to_move: PieceColor) -> bool {
-    let opponent_pieces = position.bitboards()[!to_move][PieceType::Occupied];
-    let player_pieces = position.bitboards()[to_move][PieceType::Occupied];
+    let opponent_pieces = !position.bitboards()[!to_move][Empty];
+    let player_pieces = !position.bitboards()[to_move][Empty];
 
     let opponent_rooks = position.bitboards()[to_move][Rook] | position.bitboards()[to_move][Queen];
-    let rooks = single_rook_moves(square, Bitboard(0), player_pieces | opponent_pieces);
-    if !(rooks & opponent_rooks).is_empty() {
+    let rooks = single_rook_moves(square, 0, player_pieces | opponent_pieces);
+    if rooks & opponent_rooks != 0 {
         return true;
     }
     let opponent_bishops =
         position.bitboards()[to_move][Bishop] | position.bitboards()[to_move][Queen];
-    let bishops = single_bishop_moves(square, Bitboard(0), player_pieces | opponent_pieces);
-    if !(bishops & opponent_bishops).is_empty() {
+    let bishops = single_bishop_moves(square, 0, player_pieces | opponent_pieces);
+    if bishops & opponent_bishops != 0 {
         return true;
     }
     let knights = single_knight_moves(square);
-    if !(knights & position.bitboards()[to_move][Knight]).is_empty() {
+    if knights & position.bitboards()[to_move][Knight] != 0 {
         return true;
     }
-    let pawns = if to_move == PieceColor::White {
-        single_pawn_attacks::<false>(square)
-    } else {
-        single_pawn_attacks::<true>(square)
-    };
-    if !(pawns & position.bitboards()[to_move][Pawn]).is_empty() {
+    let pawns = single_pawn_attacks(square, !to_move);
+    if pawns & position.bitboards()[to_move][Pawn] != 0 {
         return true;
     }
-    if !(Bitboard(1 << square)
-        & lookup_king(position.bitboards()[to_move][King].trailing_zeros() as u8))
-    .is_empty()
+    if (1 << square) & lookup_king(position.bitboards()[to_move][King].trailing_zeros() as u8) != 0
     {
         return true;
     }
@@ -132,7 +132,7 @@ pub fn count_checking(position: &Position) -> u32 {
 
     let opponent_rooks =
         position.bitboards()[!to_move][Rook] | position.bitboards()[!to_move][Queen];
-    let rooks = single_rook_moves(king_sq, Bitboard(0), player_pieces | opponent_pieces);
+    let rooks = single_rook_moves(king_sq, 0, player_pieces | opponent_pieces);
 
     n += (rooks & opponent_rooks).count_ones();
     if n >= 2 {
@@ -141,7 +141,7 @@ pub fn count_checking(position: &Position) -> u32 {
 
     let opponent_bishops =
         position.bitboards()[!to_move][Bishop] | position.bitboards()[!to_move][Queen];
-    let bishops = single_bishop_moves(king_sq, Bitboard(0), player_pieces | opponent_pieces);
+    let bishops = single_bishop_moves(king_sq, 0, player_pieces | opponent_pieces);
 
     n += (bishops & opponent_bishops).count_ones();
     if n >= 2 {
@@ -154,11 +154,7 @@ pub fn count_checking(position: &Position) -> u32 {
         return n;
     }
 
-    let pawns = if to_move == PieceColor::White {
-        single_pawn_attacks::<false>(king_sq)
-    } else {
-        single_pawn_attacks::<true>(king_sq)
-    };
+    let pawns = single_pawn_attacks(king_sq, to_move);
     n += (pawns & position.bitboards()[!to_move][Pawn]).count_ones();
     if n >= 2 {
         return n;
@@ -177,79 +173,72 @@ pub fn movegen(position: &Position) -> Moves {
 }
 
 pub fn king_movegen(position: &Position) -> Moves {
-    let mut moves = MoveList::new();
+    let mut movelist = MoveList::new();
     let to_move = position.to_move();
     let empty = position.bitboards()[White][Empty] & position.bitboards()[Black][Empty];
 
     let player = position.bitboards()[to_move];
     let opponent = position.bitboards()[!to_move];
 
-    king_moves::<{ flags::ALL }>(player[King], empty, !opponent[Empty], &mut moves);
+    king_moves(player[King], empty, !opponent[Empty], &mut movelist);
 
-    if moves.is_empty() {
+    if movelist.is_empty() {
         Moves::Checkmate
     } else {
-        Moves::PseudoLegalMoves(moves)
+        Moves::PseudoLegalMoves(movelist)
     }
 }
 
 pub fn pseudo_legal_movegen(position: &Position, in_check: bool) -> Moves {
     let to_move = position.to_move();
-    let empty = !position.bitboards()[White][PieceType::Occupied]
-        & !position.bitboards()[Black][PieceType::Occupied];
+    let empty = position.bitboards()[White][Empty] & position.bitboards()[Black][Empty];
 
     let player = position.bitboards()[to_move];
     let opponent = position.bitboards()[!to_move];
 
-    let mut moves = MoveList::new();
+    let mut movelist = MoveList::new();
 
     // Sliding
-    rook_moves::<{ flags::ALL }>(
+    rook_moves::<{ flags::DEFAULT }>(
         player[Rook] | player[Queen],
-        player[PieceType::Occupied],
-        opponent[PieceType::Occupied],
-        &mut moves,
+        !player[Empty],
+        !opponent[Empty],
+        &mut movelist,
     );
-    bishop_moves::<{ flags::ALL }>(
+    bishop_moves::<{ flags::DEFAULT }>(
         player[Bishop] | player[Queen],
-        player[PieceType::Occupied],
-        opponent[PieceType::Occupied],
-        &mut moves,
+        !player[Empty],
+        !opponent[Empty],
+        &mut movelist,
     );
 
     // Knights
-    knight_moves::<{ flags::ALL }>(
+    knight_moves::<{ flags::DEFAULT }>(
         player[Knight],
-        !player[PieceType::Occupied],
-        opponent[PieceType::Occupied],
-        &mut moves,
+        player[Empty],
+        !opponent[Empty],
+        &mut movelist,
     );
 
     // King
-    king_moves::<{ flags::ALL }>(
-        player[King],
-        empty,
-        opponent[PieceType::Occupied],
-        &mut moves,
-    );
+    king_moves(player[King], empty, !opponent[Empty], &mut movelist);
     if !in_check {
-        castling_moves(player[King], to_move, empty, position, &mut moves);
+        castling_moves(player[King], to_move, empty, position, &mut movelist);
     }
 
     // Pawns
-    if to_move == White {
-        pawn_moves::<true, { flags::ALL }>(player[Pawn], empty, opponent[PieceType::Occupied], position.en_passant(), &mut moves);
-    } else {
-        pawn_moves::<false, { flags::ALL }>(player[Pawn], empty, opponent[PieceType::Occupied], position.en_passant(), &mut moves);
-    }
+    single_pawn_moves(player[Pawn], to_move, empty, &mut movelist);
+    double_pawn_moves(player[Pawn], to_move, empty, &mut movelist);
+    pawn_attacks(player[Pawn], to_move, !opponent[Empty], &mut movelist);
+    en_passant(player[Pawn], to_move, position.en_passant(), &mut movelist);
 
-    if moves.is_empty() {
+    if movelist.is_empty() {
         if in_check {
             Moves::Checkmate
         } else {
             Moves::Stalemate
         }
     } else {
-        Moves::PseudoLegalMoves(moves)
+        Moves::PseudoLegalMoves(movelist)
     }
 }

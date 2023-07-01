@@ -1,7 +1,9 @@
 use std::{fmt::Display, mem};
 
-use bitboard::Bitboard;
-use piece::{Piece, PieceColor, PieceType};
+use piece::{
+    Piece, PieceColor,
+    PieceType::{self, *},
+};
 use stack::{Stack, State};
 
 pub mod bitboard;
@@ -10,7 +12,7 @@ pub mod piece;
 mod stack;
 
 pub struct Position {
-    bitboards: [[Bitboard; 7]; 2],
+    bitboards: [[u64; 7]; 2],
     mailbox: [Piece; 64],
     to_move: PieceColor,
 
@@ -18,19 +20,29 @@ pub struct Position {
 
     stack: Stack<State>,
     repetition_table: Stack<u64>,
+
+    variant: Variant,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+pub enum Variant {
+    #[default]
+    Standard,
+    FRC,
 }
 
 impl Position {
     pub fn new_empty(&self) -> Self {
-        let white_bitboard = [Bitboard::empty(); 7];
+        let bitboards = [[0; 7]; 2];
 
         Self {
-            bitboards: [white_bitboard, white_bitboard],
+            bitboards,
             mailbox: [Piece::default(); 64],
             to_move: PieceColor::White,
             fullmove_clock: 1,
             stack: Stack::new(),
             repetition_table: Stack::new(),
+            variant: Variant::Standard,
         }
     }
 
@@ -61,46 +73,44 @@ impl Position {
     }
 
     pub fn make_move(&mut self, m: Move) {
+        let to_move = self.to_move;
         self.stack.clone_push();
 
         let mut piece = self.mailbox[m.from as usize];
-        let from_bit = Bitboard(1 << m.from);
-        let to_bit = Bitboard(1 << m.to);
-
-        let to_move = self.to_move;
+        let from_bit = 1u64 << m.from;
+        let to_bit = 1u64 << m.to;
 
         if m.is_capture() || piece.ty == PieceType::Pawn {
-            self.set_halfmove_clock(0);
+            *self.halfmove_clock_mut() = 0;
         } else {
             *self.halfmove_clock_mut() += 1;
         }
 
+        // captures
         if m.flags == MoveFlags::EnPassantCapture {
-            let sq = self.en_passant()
-                + match to_move {
+            let sq = (self.en_passant()
+                + match self.to_move {
                     PieceColor::White => -8,
                     PieceColor::Black => 8,
-                };
+                }) as u64;
 
             let target = self.mailbox[sq as usize];
-            let sq_bit = Bitboard(1 << sq);
-
+            let sq_bit = 1 << sq;
             self.bitboards[target] ^= sq_bit;
-            self.bitboards[!to_move][PieceType::Occupied] ^= sq_bit;
+            self.bitboards[!self.to_move][PieceType::Empty] ^= sq_bit;
             self.mailbox[sq as usize].ty = PieceType::Empty;
-
             self.set_captured(None);
         } else if m.is_capture() {
             let target = self.mailbox[m.to as usize];
             self.bitboards[target] ^= to_bit;
-            self.bitboards[!to_move][PieceType::Occupied] ^= to_bit;
+            self.bitboards[!self.to_move][PieceType::Empty] ^= to_bit;
 
             // take castling rights
             if target.ty == PieceType::Rook {
-                if m.to == self.castling()[!to_move][0] as u8 {
+                if m.to.wrapping_sub(56 * !self.to_move as u8) == 0 {
                     self.castling_mut()[!to_move][0] = -1;
                 }
-                if m.to == self.castling()[!to_move][1] as u8 {
+                if m.to.wrapping_sub(56 * !self.to_move as u8) == 7 {
                     self.castling_mut()[!to_move][1] = -1;
                 }
             }
@@ -114,7 +124,7 @@ impl Position {
 
         // en passant
         if m.flags == MoveFlags::DoublePawnPush {
-            self.set_en_passant(match to_move {
+            self.set_en_passant(match self.to_move {
                 PieceColor::White => m.to as i8 - 8,
                 PieceColor::Black => m.to as i8 + 8,
             });
@@ -130,99 +140,86 @@ impl Position {
         }
 
         // castling
-        if m.flags == MoveFlags::QueenCastle {
-            let rook = self.castling()[to_move][0] as usize;
-
-            self.mailbox[m.to as usize + 1] = self.mailbox[rook];
-            self.mailbox[rook].ty = PieceType::Empty;
-
-            self.bitboards[to_move][PieceType::Rook] ^= Bitboard(1 << rook) | to_bit << 1;
-            self.bitboards[to_move][PieceType::Occupied] ^= Bitboard(1 << rook) | to_bit << 1;
+        if m.flags == MoveFlags::LeftCastle {
+            self.mailbox[m.to as usize + 1] = self.mailbox[m.to as usize - 2];
+            self.mailbox[m.to as usize - 2].ty = PieceType::Empty;
+            self.bitboards[self.to_move][PieceType::Rook] ^= to_bit >> 2 | to_bit << 1;
+            self.bitboards[self.to_move][PieceType::Empty] ^= to_bit >> 2 | to_bit << 1;
         }
-        if m.flags == MoveFlags::KingCastle {
-            let rook = self.castling()[to_move][1] as usize;
-
-            self.mailbox[m.to as usize - 1] = self.mailbox[rook];
-            self.mailbox[rook].ty = PieceType::Empty;
-
-            self.bitboards[to_move][PieceType::Rook] ^= Bitboard(1 << rook) | to_bit >> 1;
-            self.bitboards[to_move][PieceType::Occupied] ^= Bitboard(1 << rook) | to_bit >> 1;
+        if m.flags == MoveFlags::RightCastle {
+            self.mailbox[m.to as usize - 1] = self.mailbox[m.to as usize + 1];
+            self.mailbox[m.to as usize + 1].ty = PieceType::Empty;
+            self.bitboards[self.to_move][PieceType::Rook] ^= to_bit << 1 | to_bit >> 1;
+            self.bitboards[self.to_move][PieceType::Empty] ^= to_bit << 1 | to_bit >> 1;
         }
 
         // take castling rights
         if piece.ty == PieceType::King {
             self.castling_mut()[to_move] = [-1, -1];
         }
-        if piece.ty == PieceType::Rook && m.from == self.castling()[to_move][0] as u8 {
+        if piece.ty == PieceType::Rook && (m.from == 56 * self.to_move as u8) {
             self.castling_mut()[to_move][0] = -1;
         }
-        if piece.ty == PieceType::Rook && m.from == self.castling()[to_move][1] as u8 {
+        if piece.ty == PieceType::Rook && (m.from == 56 * self.to_move as u8 + 7) {
             self.castling_mut()[to_move][1] = -1;
         }
 
         self.mailbox[m.from as usize].ty = PieceType::Empty;
         self.mailbox[m.to as usize] = piece;
-        self.bitboards[to_move][PieceType::Occupied] ^= from_bit | to_bit;
+        self.bitboards[self.to_move][PieceType::Empty] ^= from_bit | to_bit;
 
-        self.fullmove_clock += to_move as u16;
+        self.fullmove_clock += self.to_move as u16;
 
-        self.to_move = !to_move;
+        self.to_move = !self.to_move;
     }
 
     pub fn unmake_move(&mut self, m: Move) {
         let to_move = !self.to_move;
         self.fullmove_clock -= to_move as u16;
 
-        let from_bit = Bitboard(1 << m.from);
-        let to_bit = Bitboard(1 << m.to);
-
-        self.bitboards[to_move][PieceType::Occupied] ^= from_bit | to_bit;
+        self.bitboards[to_move][Empty] ^= 1 << m.from | 1 << m.to;
 
         match m.promotion() {
             Some(ty) => {
                 self.mailbox[m.from as usize].ty = PieceType::Pawn;
                 self.mailbox[m.from as usize].color = to_move;
-                self.bitboards[to_move][PieceType::Pawn] ^= from_bit;
-                self.bitboards[to_move][ty] ^= to_bit;
+                self.bitboards[to_move][PieceType::Pawn] ^= 1 << m.from;
+                self.bitboards[to_move][ty] ^= 1 << m.to;
             }
             None => {
                 let ty = self.mailbox[m.to as usize].ty;
                 self.mailbox[m.from as usize].ty = ty;
                 self.mailbox[m.from as usize].color = to_move;
-                self.bitboards[to_move][ty] ^= from_bit | to_bit;
+                self.bitboards[to_move][ty] ^= 1 << m.from | 1 << m.to;
             }
+        }
+
+        if m.flags == MoveFlags::LeftCastle {
+            let rook_from = to_move as usize * 56;
+            let rook_to = rook_from + 3;
+            self.mailbox[rook_from] = self.mailbox[rook_to];
+            self.mailbox[rook_to].ty = PieceType::Empty;
+            self.bitboards[to_move][PieceType::Rook] ^= 1 << rook_from | 1 << rook_to;
+            self.bitboards[to_move][Empty] ^= 1 << rook_from | 1 << rook_to;
+        } else if m.flags == MoveFlags::RightCastle {
+            let rook_from = 7 + to_move as usize * 56;
+            let rook_to = rook_from - 2;
+            self.mailbox[rook_from] = self.mailbox[rook_to];
+            self.mailbox[rook_to].ty = PieceType::Empty;
+            self.bitboards[to_move][PieceType::Rook] ^= 1 << rook_from | 1 << rook_to;
+            self.bitboards[to_move][Empty] ^= 1 << rook_from | 1 << rook_to;
         }
 
         if let Some(captured) = self.captured() {
             self.mailbox[m.to as usize].ty = captured;
             self.mailbox[m.to as usize].color = !to_move;
-            self.bitboards[!to_move][captured] ^= to_bit;
-            self.bitboards[!to_move][PieceType::Occupied] ^= to_bit;
+            self.bitboards[!to_move][captured] ^= 1 << m.to;
+            self.bitboards[!to_move][Empty] ^= 1 << m.to;
         } else {
             self.mailbox[m.to as usize].ty = PieceType::Empty;
         }
 
         self.stack.discard_top();
-
-        if m.flags == MoveFlags::QueenCastle {
-            let rook_from = self.castling()[to_move][0] as usize;
-            let rook_to = m.to as usize + 1;
-            self.mailbox[rook_from] = self.mailbox[rook_to];
-            self.mailbox[rook_to].ty = PieceType::Empty;
-            self.bitboards[to_move][PieceType::Rook] ^=
-                Bitboard(1 << rook_from) | Bitboard(1 << rook_to);
-            self.bitboards[to_move][PieceType::Occupied] ^=
-                Bitboard(1 << rook_from) | Bitboard(1 << rook_to);
-        } else if m.flags == MoveFlags::KingCastle {
-            let rook_from = self.castling()[to_move][1] as usize;
-            let rook_to = m.to as usize - 1;
-            self.mailbox[rook_from] = self.mailbox[rook_to];
-            self.mailbox[rook_to].ty = PieceType::Empty;
-            self.bitboards[to_move][PieceType::Rook] ^=
-                Bitboard(1 << rook_from) | Bitboard(1 << rook_to);
-            self.bitboards[to_move][PieceType::Occupied] ^=
-                Bitboard(1 << rook_from) | Bitboard(1 << rook_to);
-        }
 
         if m.flags == MoveFlags::EnPassantCapture {
             let sq = (self.en_passant()
@@ -232,8 +229,8 @@ impl Position {
                 }) as usize;
             self.mailbox[sq].ty = PieceType::Pawn;
             self.mailbox[sq].color = !to_move;
-            self.bitboards[!to_move][PieceType::Pawn] ^= Bitboard(1 << sq);
-            self.bitboards[!to_move][PieceType::Empty] ^= Bitboard(1 << sq);
+            self.bitboards[!to_move][Pawn] ^= 1 << sq;
+            self.bitboards[!to_move][Empty] ^= 1 << sq;
         }
 
         self.to_move = !self.to_move;
@@ -251,6 +248,14 @@ impl Position {
     pub fn finalize_moves(&mut self) {
         self.stack.clear();
         self.repetition_table.retain(self.halfmove_clock());
+    }
+
+    pub fn variant(&self) -> Variant {
+        self.variant
+    }
+
+    pub fn set_variant(&mut self, variant: Variant) {
+        self.variant = variant;
     }
 }
 
@@ -317,10 +322,10 @@ impl Move {
 
             match (piece.ty, to as i8 - from as i8) {
                 (PieceType::King, 2) => {
-                    return Some(Move::new(from, to, MoveFlags::KingCastle));
+                    return Some(Move::new(from, to, MoveFlags::RightCastle));
                 }
                 (PieceType::King, -2) => {
-                    return Some(Move::new(from, to, MoveFlags::QueenCastle));
+                    return Some(Move::new(from, to, MoveFlags::LeftCastle));
                 }
                 (PieceType::Pawn, -16 | 16) => {
                     return Some(Move::new(from, to, MoveFlags::DoublePawnPush));
@@ -341,7 +346,7 @@ impl Move {
             }
 
             // Safety: Only the bits 0b0100 and/or 0b1011 will be set. The only values for which
-            // `Code` has no enum values are 0b0110 and 0b0111 but both can't be reached as both
+            // `MoveFlags` has no enum values are 0b0110 and 0b0111 but both can't be reached as both
             // require the 0b0010 bit which can only be set with the 0b1000 bit.
             Some(Move::new(from, to, unsafe { mem::transmute(code) }))
         } else {
@@ -374,8 +379,8 @@ impl Display for Move {
 pub enum MoveFlags {
     Quiet = 0,
     DoublePawnPush,
-    KingCastle,
-    QueenCastle,
+    RightCastle,
+    LeftCastle,
     Capture,
     EnPassantCapture,
     KnightPromotion = 8,
@@ -411,12 +416,12 @@ impl Position {
     }
 
     #[inline]
-    pub fn bitboards(&self) -> &[[Bitboard; 7]; 2] {
+    pub fn bitboards(&self) -> &[[u64; 7]; 2] {
         &self.bitboards
     }
 
     #[inline]
-    pub fn bitboards_mut(&mut self) -> &mut [[Bitboard; 7]; 2] {
+    pub fn bitboards_mut(&mut self) -> &mut [[u64; 7]; 2] {
         &mut self.bitboards
     }
 

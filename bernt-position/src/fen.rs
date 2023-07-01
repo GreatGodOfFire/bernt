@@ -1,4 +1,4 @@
-use crate::{bitboard::Bitboard, piece::PieceType, stack::Stack};
+use crate::{piece::PieceType, stack::Stack, Variant};
 
 use super::{
     piece::{Piece, PieceColor, PieceType::*},
@@ -11,7 +11,9 @@ impl Position {
     }
 
     pub fn from_fen(fen: &str) -> Option<Self> {
-        let mut bitboards = [[Bitboard(0); 7]; 2];
+        let mut bitboards = [[0; 7]; 2];
+        bitboards[0][PieceType::Empty] = u64::MAX;
+        bitboards[1][PieceType::Empty] = u64::MAX;
         let mut mailbox = [Piece::EMPTY; 64];
 
         let parts = fen.split(' ').collect::<Vec<_>>();
@@ -73,7 +75,8 @@ impl Position {
                         }
                         let square = i * 8 + j as usize;
                         mailbox[square] = piece;
-                        bitboards[piece] |= Bitboard(1 << square);
+                        bitboards[piece] |= 1 << square;
+                        bitboards[color][Empty] ^= 1 << square;
 
                         j += 1;
                     }
@@ -82,10 +85,6 @@ impl Position {
                 idx += 1;
             }
         }
-        bitboards[PieceColor::White][PieceType::Occupied] =
-            bitboards[0].into_iter().fold(Bitboard(0), |x, y| x | y);
-        bitboards[PieceColor::Black][PieceType::Occupied] =
-            bitboards[1].into_iter().fold(Bitboard(0), |x, y| x | y);
 
         let to_move = match parts[1] {
             "w" => PieceColor::White,
@@ -107,7 +106,7 @@ impl Position {
                         'Q' => castling[PieceColor::White][0] = 0,
                         'k' => castling[PieceColor::Black][1] = 63,
                         'q' => castling[PieceColor::Black][0] = 56,
-                        // Support for Shredder-FEN for Chess960
+                        // Support for Shredder-FEN for FRC
                         c if c.is_ascii_uppercase() => {
                             let rook_file = c as i8 - b'A' as i8;
 
@@ -174,6 +173,7 @@ impl Position {
             fullmove_clock,
             stack,
             repetition_table,
+            variant: Variant::Standard,
         })
     }
 }

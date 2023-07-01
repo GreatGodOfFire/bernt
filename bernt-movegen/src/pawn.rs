@@ -1,123 +1,103 @@
-use bernt_position::{bitboard::Bitboard, Move, MoveFlags};
+use bernt_position::{bitboard::BitIter, piece::PieceColor, Move, MoveFlags};
 
-use crate::{
-    flags,
-    util::{east, north, south, west, RANK_1, RANK_2, RANK_7, RANK_8},
-    MoveList,
-};
+use crate::MoveList;
 
-pub fn pawn_moves<const IS_WHITE: bool, const FLAGS: u8>(
-    pawns: Bitboard,
-    empty: Bitboard,
-    enemies: Bitboard,
-    en_passant: i8,
-    movelist: &mut MoveList,
-) {
-    if FLAGS & flags::QUIET != 0 {
-        single_pawn_moves::<IS_WHITE, FLAGS>(pawns, empty, movelist);
-        double_pawn_moves::<IS_WHITE>(pawns, empty, movelist);
-    } else if FLAGS & flags::PROMOTIONS != 0 {
-        single_pawn_moves::<IS_WHITE, FLAGS>(pawns, empty, movelist);
-    }
-    if FLAGS & flags::CAPTURES != 0 {
-        pawn_attacks::<IS_WHITE, FLAGS>(pawns, enemies, movelist);
-        en_passant_capture::<IS_WHITE>(pawns, en_passant, movelist);
-    }
-    // if FLAGS & flags::QUIET != 0 {
-    //     single_pawn_moves::<IS_WHITE, FLAGS>(pawns, empty, movelist);
-    // }
-}
+use super::util::{east, north, south, west, RANK_1, RANK_2, RANK_7, RANK_8};
 
-fn single_pawn_moves<const IS_WHITE: bool, const FLAGS: u8>(
-    pawns: Bitboard,
-    empty: Bitboard,
-    movelist: &mut MoveList,
-) {
-    let pawns = pawns & if IS_WHITE { empty >> 8 } else { empty << 8 };
-    let moves = if IS_WHITE { pawns << 8 } else { pawns >> 8 };
-    let (promoting, promotion) = if IS_WHITE {
-        (RANK_7, RANK_8)
-    } else {
-        (RANK_2, RANK_1)
+pub fn single_pawn_moves(pawns: u64, color: PieceColor, empty: u64, movelist: &mut MoveList) {
+    let movable_pawns = match color {
+        PieceColor::White => pawns & (empty >> 8),
+        PieceColor::Black => pawns & (empty << 8),
+    };
+    let moves = match color {
+        PieceColor::White => movable_pawns << 8,
+        PieceColor::Black => movable_pawns >> 8,
+    } & empty;
+
+    let (promoting_piece_mask, promotions_mask) = match color {
+        PieceColor::White => (RANK_7, RANK_8),
+        PieceColor::Black => (RANK_2, RANK_1),
     };
 
-    if FLAGS & flags::QUIET != 0 {
-        for (from, to) in (pawns & !promoting).zip(moves & !promotion) {
-            movelist.add(Move::new(from, to, MoveFlags::Quiet));
-        }
+    for (from, to) in
+        BitIter(movable_pawns & !promoting_piece_mask).zip(BitIter(moves & !promotions_mask))
+    {
+        movelist.add(Move::new(from, to, MoveFlags::Quiet));
     }
 
-    if FLAGS & flags::PROMOTIONS != 0 {
-        for (from, to) in (pawns & promoting).zip(moves & promotion) {
-            movelist.add(Move::new(from, to, MoveFlags::QueenPromotion));
-            movelist.add(Move::new(from, to, MoveFlags::RookPromotion));
-            movelist.add(Move::new(from, to, MoveFlags::BishopPromotion));
-            movelist.add(Move::new(from, to, MoveFlags::KnightPromotion));
-        }
+    for (from, to) in
+        BitIter(movable_pawns & promoting_piece_mask).zip(BitIter(moves & promotions_mask))
+    {
+        movelist.add(Move::new(from, to, MoveFlags::KnightPromotion));
+        movelist.add(Move::new(from, to, MoveFlags::BishopPromotion));
+        movelist.add(Move::new(from, to, MoveFlags::RookPromotion));
+        movelist.add(Move::new(from, to, MoveFlags::QueenPromotion));
     }
 }
 
-fn double_pawn_moves<const IS_WHITE: bool>(
-    pawns: Bitboard,
-    empty: Bitboard,
-    movelist: &mut MoveList,
-) {
-    let rank = Bitboard(if IS_WHITE { 0xff << 8 } else { 0xff << 48 });
+pub fn double_pawn_moves(pawns: u64, color: PieceColor, empty: u64, movelist: &mut MoveList) {
+    match color {
+        PieceColor::White => double_pawn_moves_white(pawns, empty, movelist),
+        PieceColor::Black => double_pawn_moves_black(pawns, empty, movelist),
+    }
+}
 
-    let free_pawns = if IS_WHITE {
-        pawns & rank & empty >> 8 & empty >> 16
-    } else {
-        pawns & rank & empty << 8 & empty << 16
-    };
-    let moves = if IS_WHITE {
-        free_pawns << 16
-    } else {
-        free_pawns >> 16
-    };
+fn double_pawn_moves_white(pawns: u64, empty: u64, movelist: &mut MoveList) {
+    const RANK: u64 = 0xff << 8;
 
-    for (from, to) in free_pawns.zip(moves) {
+    let free_pawns = pawns & RANK & empty >> 8 & empty >> 16;
+    let moves = free_pawns << 16;
+
+    for (from, to) in BitIter(free_pawns).zip(BitIter(moves)) {
         movelist.add(Move::new(from, to, MoveFlags::DoublePawnPush));
     }
 }
 
-fn pawn_attacks<const IS_WHITE: bool, const FLAGS: u8>(
-    pawns: Bitboard,
-    enemies: Bitboard,
-    movelist: &mut MoveList,
-) {
-    for from in pawns {
-        for to in ATTACKS_LOOKUP[!IS_WHITE as usize][from as usize] & enemies & !(RANK_1 | RANK_8) {
+fn double_pawn_moves_black(pawns: u64, empty: u64, movelist: &mut MoveList) {
+    const RANK: u64 = 0xff << 48;
+
+    let free_pawns = pawns & RANK & empty << 8 & empty << 16;
+    let moves = free_pawns >> 16;
+
+    for (from, to) in BitIter(free_pawns).zip(BitIter(moves)) {
+        movelist.add(Move::new(from, to, MoveFlags::DoublePawnPush));
+    }
+}
+
+pub fn pawn_attacks(pawns: u64, color: PieceColor, enemies: u64, movelist: &mut MoveList) {
+    for from in BitIter(pawns) {
+        for to in BitIter(ATTACKS_LOOKUP[color][from as usize] & enemies & !(RANK_1 | RANK_8)) {
             movelist.add(Move::new(from, to, MoveFlags::Capture));
         }
 
-        if FLAGS & flags::PROMOTIONS != 0 {
-            for to in
-                ATTACKS_LOOKUP[!IS_WHITE as usize][from as usize] & enemies & (RANK_1 | RANK_8)
-            {
-                movelist.add(Move::new(from, to, MoveFlags::QueenPromotionCapture));
-                movelist.add(Move::new(from, to, MoveFlags::RookPromotionCapture));
-                movelist.add(Move::new(from, to, MoveFlags::BishopPromotionCapture));
-                movelist.add(Move::new(from, to, MoveFlags::KnightPromotionCapture));
-            }
+        // Promotions
+        for to in BitIter(ATTACKS_LOOKUP[color][from as usize] & enemies & (RANK_1 | RANK_8)) {
+            movelist.add(Move::new(from, to, MoveFlags::KnightPromotionCapture));
+            movelist.add(Move::new(from, to, MoveFlags::BishopPromotionCapture));
+            movelist.add(Move::new(from, to, MoveFlags::RookPromotionCapture));
+            movelist.add(Move::new(from, to, MoveFlags::QueenPromotionCapture));
         }
     }
 }
 
-pub fn single_pawn_attacks<const IS_WHITE: bool>(pawn: u8) -> Bitboard {
-    ATTACKS_LOOKUP[!IS_WHITE as usize][pawn as usize]
+pub fn single_pawn_attacks(pawn: u8, color: PieceColor) -> u64 {
+    ATTACKS_LOOKUP[color][pawn as usize]
 }
 
-fn en_passant_capture<const IS_WHITE: bool>(pawns: Bitboard, en_passant: i8, movelist: &mut MoveList) {
+pub fn en_passant(pawns: u64, color: PieceColor, en_passant: i8, movelist: &mut MoveList) {
     if en_passant < 0 {
         return;
     }
 
-    let shift = if IS_WHITE { south } else { north };
+    let shift = match color {
+        PieceColor::White => south,
+        PieceColor::Black => north,
+    };
 
-    let bit = Bitboard(1 << (en_passant as u8));
+    let bit = 1 << (en_passant as u8);
     let pawns = (shift(east(bit)) | shift(west(bit))) & pawns;
 
-    for from in pawns {
+    for from in BitIter(pawns) {
         movelist.add(Move::new(
             from,
             en_passant as u8,
@@ -126,17 +106,16 @@ fn en_passant_capture<const IS_WHITE: bool>(pawns: Bitboard, en_passant: i8, mov
     }
 }
 
-const ATTACKS_LOOKUP: [[Bitboard; 64]; 2] = generate_attacks_lookup();
+const ATTACKS_LOOKUP: [[u64; 64]; 2] = generate_attacks_lookup();
 
-const fn generate_attacks_lookup() -> [[Bitboard; 64]; 2] {
-    let mut attacks = [[Bitboard(0); 64]; 2];
+const fn generate_attacks_lookup() -> [[u64; 64]; 2] {
+    let mut attacks = [[0; 64]; 2];
 
     let mut i = 0;
     while i < 64 {
-        let bit = Bitboard(1u64 << i);
-        // Lets hope they will make const impl possible again -_-
-        attacks[0][i] = Bitboard(north(east(bit)).0 | north(west(bit)).0);
-        attacks[1][i] = Bitboard(south(east(bit)).0 | south(west(bit)).0);
+        let bit = 1u64 << i;
+        attacks[0][i] = north(east(bit)) | north(west(bit));
+        attacks[1][i] = south(east(bit)) | south(west(bit));
 
         i += 1;
     }

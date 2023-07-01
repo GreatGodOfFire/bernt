@@ -1,82 +1,78 @@
-use bernt_position::{bitboard::Bitboard, piece::PieceColor, Move, MoveFlags, Position};
+use bernt_position::{bitboard::BitIter, piece::PieceColor, Move, MoveFlags, Position};
 
-use crate::{flags, is_attacking, MoveList};
+use crate::MoveList;
 
-pub fn king_moves<const FLAGS: u8>(
-    king: Bitboard,
-    free_squares: Bitboard,
-    enemies: Bitboard,
-    movelist: &mut MoveList,
-) {
-    let from = king.trailing_zeros();
-    let moves = KING_MOVES_LOOKUP[from as usize];
+use super::{
+    is_attacking,
+    util::{FILE_A, FILE_H, RANK_1, RANK_8},
+};
 
-    if FLAGS & flags::QUIET != 0 {
-        for to in moves & free_squares {
-            movelist.add(Move::new(from as u8, to, MoveFlags::Quiet));
-        }
+pub fn king_moves(king: u64, free_squares: u64, enemies: u64, movelist: &mut MoveList) {
+    let from = king.trailing_zeros() as u8;
+    let moves = LOOKUP[from as usize];
+
+    for to in BitIter(moves & free_squares) {
+        movelist.add(Move::new(from, to, MoveFlags::Quiet));
     }
 
-    if FLAGS & flags::CAPTURES != 0 {
-        for to in moves & enemies {
-            movelist.add(Move::new(from as u8, to, MoveFlags::Capture));
-        }
+    for to in BitIter(moves & enemies) {
+        movelist.add(Move::new(from, to, MoveFlags::Capture));
     }
 }
 
-pub fn lookup_king(king: u8) -> Bitboard {
-    KING_MOVES_LOOKUP[king as usize]
+pub fn lookup_king(king: u8) -> u64 {
+    LOOKUP[king as usize]
 }
 
 pub fn castling_moves(
-    king: Bitboard,
+    king: u64,
     color: PieceColor,
-    empty: Bitboard,
+    empty: u64,
     position: &Position,
     movelist: &mut MoveList,
 ) {
-    let row = (!empty >> (color as u8 * 56)) & Bitboard(0xff);
+    let row = (!empty >> (color as u8 * 56)) & 0xff;
     let king_square = king.trailing_zeros() as u8;
 
-    if (QUEENSIDE_CASTLE & row).is_empty()
-        && position.castling()[color][0] != -1
-        && !is_attacking(king_square - 1, position, !color)
+    if QUEENSIDE_CASTLE & row == 0
+        && position.castling()[color][0] >= 0
+        && !is_attacking(king_square as u8 - 1, position, !color)
     {
         movelist.add(Move::new(
             king_square,
             king_square - 2,
-            MoveFlags::QueenCastle,
+            MoveFlags::LeftCastle,
         ));
     }
 
-    if (KINGSIDE_CASTLE & row).is_empty()
-        && position.castling()[color][1] != -1
-        && !is_attacking(king_square + 1, position, !color)
+    if KINGSIDE_CASTLE & row == 0
+        && position.castling()[color][1] >= 0
+        && !is_attacking(king_square as u8 + 1, position, !color)
     {
         movelist.add(Move::new(
             king_square,
             king_square + 2,
-            MoveFlags::KingCastle,
+            MoveFlags::RightCastle,
         ));
     }
 }
 
-const QUEENSIDE_CASTLE: Bitboard = Bitboard(0xe);
-const KINGSIDE_CASTLE: Bitboard = Bitboard(0x60);
+const QUEENSIDE_CASTLE: u64 = 0xe;
+const KINGSIDE_CASTLE: u64 = 0x60;
 
-const KING_MOVES_LOOKUP: [Bitboard; 64] = generate_lookup();
+const LOOKUP: [u64; 64] = generate_lookup();
 
-const fn generate_lookup() -> [Bitboard; 64] {
-    let mut attacks = [Bitboard(0); 64];
+const fn generate_lookup() -> [u64; 64] {
+    let mut attacks = [0u64; 64];
     let mut i = 0;
 
     while i < 64 {
         let mut king = 1u64 << i;
 
-        let mut moves = (king & !0x101010101010101) >> 1 | (king & !0x8080808080808080) << 1;
+        let mut moves = (king & !FILE_A) >> 1 | (king & !FILE_H) << 1;
         king |= moves;
-        moves |= (king & !(0xff << 56)) << 8 | (king & !0xff) >> 8;
-        attacks[i] = Bitboard(moves);
+        moves |= (king & !RANK_8) << 8 | (king & !RANK_1) >> 8;
+        attacks[i] = moves;
 
         i += 1;
     }

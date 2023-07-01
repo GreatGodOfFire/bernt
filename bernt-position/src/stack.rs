@@ -42,8 +42,8 @@ impl<T: Default + Clone> Stack<T> {
     }
 
     #[inline]
-    pub fn push(&mut self, state: T) {
-        self.array[self.len as usize] = state;
+    pub fn push(&mut self, t: T) {
+        self.array[self.len as usize] = t;
         self.len += 1;
     }
 

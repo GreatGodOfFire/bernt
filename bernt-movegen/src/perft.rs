@@ -1,6 +1,6 @@
 use bernt_position::Position;
 
-use crate::{movegen, Moves, is_in_check};
+use crate::{is_in_check, movegen, Moves};
 
 pub fn perft(position: &mut Position, depth: u8) -> u64 {
     let moves = movegen(position);
@@ -24,7 +24,6 @@ pub fn perft(position: &mut Position, depth: u8) -> u64 {
             position.unmake_move(m);
         }
     }
-
 
     n
 }

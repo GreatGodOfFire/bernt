@@ -29,7 +29,7 @@ const fn attack_count(bits: [u8; 64]) -> usize {
     let mut sum = 0;
 
     while i < 64 {
-        sum += 1 << bits[i];
+        sum += 2usize.pow(bits[i] as usize as u32);
         i += 1;
     }
 
@@ -43,9 +43,9 @@ const fn rook_attacks() -> [u64; attack_count(_ROOK_MASKS_BITS)] {
     while square < 64 {
         let mut j = 0;
         let magic = ROOK_MAGICS[square];
-        let mask = magic.mask;
-        while j < 1 << mask.count_ones() {
-            let permutation = permutation(j, mask);
+        let relevant_bits = magic.mask;
+        while j < 1 << relevant_bits.count_ones() {
+            let permutation = permutation(j, relevant_bits);
 
             attacks[((magic.magic.wrapping_mul(permutation)) >> (64 - magic.bits)) as usize
                 + magic.offset] = rook_attack(square as u8, permutation);
@@ -66,11 +66,12 @@ const fn bishop_attacks() -> [u64; attack_count(_BISHOP_MASKS_BITS)] {
     while square < 64 {
         let mut j = 0;
         let magic = BISHOP_MAGICS[square];
-        let mask = magic.mask;
-        while j < 1 << mask.count_ones() {
-            let permutation = permutation(j, mask);
+        let relevant_bits = magic.mask;
+        while j < 1 << relevant_bits.count_ones() {
+            let permutation = permutation(j, relevant_bits);
 
-            attacks[((magic.magic.wrapping_mul(permutation)) >> (64 - magic.bits)) as usize
+            attacks[((magic.magic.wrapping_mul(permutation & magic.mask)) >> (64 - magic.bits))
+                as usize
                 + magic.offset] = bishop_attack(square as u8, permutation);
 
             j += 1;
@@ -116,7 +117,6 @@ const fn rook_attack(square: u8, blockings: u64) -> u64 {
         }
         r += 1;
     }
-
     if rank > 0 {
         r = rank - 1;
         while r < rank {
@@ -128,7 +128,6 @@ const fn rook_attack(square: u8, blockings: u64) -> u64 {
             r = r.wrapping_sub(1);
         }
     }
-
     f = file + 1;
     while f < 8 {
         let bit = 1 << (f + rank * 8);
@@ -138,7 +137,6 @@ const fn rook_attack(square: u8, blockings: u64) -> u64 {
         }
         f += 1;
     }
-
     if file > 0 {
         f = file - 1;
         while f < file {
@@ -163,7 +161,7 @@ const fn bishop_attack(square: u8, blockings: u64) -> u64 {
     while r < 8 && f < 8 {
         let bit = 1 << (f + r * 8);
         result |= bit;
-        if blockings & bit != 0 {
+        if blockings & (1 << (f + r * 8)) != 0 {
             break;
         }
         r += 1;
@@ -174,7 +172,7 @@ const fn bishop_attack(square: u8, blockings: u64) -> u64 {
         while r < 8 && f < 8 {
             let bit = 1 << (f + r * 8);
             result |= bit;
-            if blockings & bit != 0 {
+            if blockings & (1 << (f + r * 8)) != 0 {
                 break;
             }
             r += 1;
@@ -186,7 +184,7 @@ const fn bishop_attack(square: u8, blockings: u64) -> u64 {
         while r < 8 && f < 8 {
             let bit = 1 << (f + r * 8);
             result |= bit;
-            if blockings & bit != 0 {
+            if blockings & (1 << (f + r * 8)) != 0 {
                 break;
             }
             r = r.wrapping_sub(1);
@@ -198,7 +196,7 @@ const fn bishop_attack(square: u8, blockings: u64) -> u64 {
         while r < 8 && f < 8 {
             let bit = 1 << (f + r * 8);
             result |= bit;
-            if blockings & bit != 0 {
+            if blockings & (1 << (f + r * 8)) != 0 {
                 break;
             }
             r = r.wrapping_sub(1);
