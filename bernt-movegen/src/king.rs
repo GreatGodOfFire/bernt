@@ -36,7 +36,7 @@ pub fn castling_moves(
 
     if QUEENSIDE_CASTLE & row == 0
         && position.castling()[color][0] >= 0
-        && !is_attacking(king_square as u8 - 1, position, !color)
+        && !is_attacking(king_square - 1, position, !color)
     {
         movelist.add(Move::new(
             king_square,
@@ -47,7 +47,7 @@ pub fn castling_moves(
 
     if KINGSIDE_CASTLE & row == 0
         && position.castling()[color][1] >= 0
-        && !is_attacking(king_square as u8 + 1, position, !color)
+        && !is_attacking(king_square + 1, position, !color)
     {
         movelist.add(Move::new(
             king_square,

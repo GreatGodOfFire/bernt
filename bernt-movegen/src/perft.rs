@@ -7,7 +7,7 @@ pub fn perft(position: &mut Position, depth: u8) -> u64 {
     let mut n = 0;
 
     if let Moves::PseudoLegalMoves(moves) = moves {
-        for m in moves {
+        for m in &moves {
             position.make_move(m);
 
             if !is_in_check(position, !position.to_move()) {
@@ -38,7 +38,7 @@ fn internal_perft(position: &mut Position, depth: u8) -> u64 {
     let moves = movegen(position);
 
     if let Moves::PseudoLegalMoves(moves) = moves {
-        for m in moves {
+        for m in &moves {
             position.make_move(m);
 
             if !is_in_check(position, !position.to_move()) {

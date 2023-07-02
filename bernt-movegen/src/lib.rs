@@ -1,3 +1,5 @@
+use std::{ops::Index, slice::SliceIndex};
+
 use bernt_position::{
     piece::{
         PieceColor::{self, *},
@@ -29,18 +31,17 @@ pub(crate) mod flags {
     pub const DEFAULT_FRC: u8 = DEFAULT | FRC;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Moves {
     PseudoLegalMoves(MoveList),
     Stalemate,
     Checkmate,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MoveList {
     array: Box<[Move; 256]>,
     len: u8,
-    idx: u8,
 }
 
 impl MoveList {
@@ -48,8 +49,11 @@ impl MoveList {
         Self {
             array: Box::new([Move::null(); 256]),
             len: 0,
-            idx: 0,
         }
+    }
+
+    pub fn len(&self) -> u8 {
+        self.len
     }
 
     pub fn is_empty(&self) -> bool {
@@ -60,6 +64,10 @@ impl MoveList {
         self.array[self.len as usize] = m;
         self.len += 1;
     }
+
+    pub fn clear(&mut self) {
+        self.len = 0;
+    }
 }
 
 impl Default for MoveList {
@@ -68,17 +76,41 @@ impl Default for MoveList {
     }
 }
 
-impl Iterator for MoveList {
+impl<'a> IntoIterator for &'a MoveList {
+    type Item = Move;
+
+    type IntoIter = MoveListIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        MoveListIter(self, 0)
+    }
+}
+
+pub struct MoveListIter<'a>(&'a MoveList, u8);
+
+impl<'a> Iterator for MoveListIter<'a> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.idx >= self.len {
+        if self.1 >= self.0.len() {
             return None;
         }
+        let x = self.0[self.1 as usize];
 
-        let x = self.array[self.idx as usize];
-        self.idx += 1;
+        self.1 += 1;
+
         Some(x)
+    }
+}
+
+impl<Idx> Index<Idx> for MoveList
+where
+    Idx: SliceIndex<[Move], Output = Move>,
+{
+    type Output = Move;
+
+    fn index(&self, index: Idx) -> &Self::Output {
+        &self.array[index]
     }
 }
 

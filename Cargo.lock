@@ -5,10 +5,10 @@ version = 3
 [[package]]
 name = "bernt"
 version = "0.1.0"
-
-[[package]]
-name = "bernt-eval"
-version = "0.1.0"
+dependencies = [
+ "bernt-position",
+ "bernt-search",
+]
 
 [[package]]
 name = "bernt-movegen"
@@ -20,6 +20,14 @@ dependencies = [
 [[package]]
 name = "bernt-position"
 version = "0.1.0"
+
+[[package]]
+name = "bernt-search"
+version = "0.1.0"
+dependencies = [
+ "bernt-movegen",
+ "bernt-position",
+]
 
 [[package]]
 name = "bernt-tuning"

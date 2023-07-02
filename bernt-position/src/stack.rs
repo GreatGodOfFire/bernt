@@ -2,6 +2,7 @@ use std::ops::{Index, IndexMut};
 
 use crate::piece::PieceType;
 
+#[derive(Clone)]
 pub(crate) struct Stack<T> {
     array: [T; 256],
     len: u8,

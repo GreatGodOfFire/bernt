@@ -1,3 +1,5 @@
+#![feature(const_mut_refs)]
+
 use std::{fmt::Display, mem};
 
 use piece::{
@@ -10,7 +12,9 @@ pub mod bitboard;
 pub mod fen;
 pub mod piece;
 mod stack;
+mod zobrist;
 
+#[derive(Clone)]
 pub struct Position {
     bitboards: [[u64; 7]; 2],
     mailbox: [Piece; 64],
@@ -32,7 +36,7 @@ pub enum Variant {
 }
 
 impl Position {
-    pub fn new_empty(&self) -> Self {
+    pub fn new_empty() -> Self {
         let bitboards = [[0; 7]; 2];
 
         Self {
@@ -44,6 +48,13 @@ impl Position {
             repetition_table: Stack::new(),
             variant: Variant::Standard,
         }
+    }
+
+    pub fn calc_zobrist(&mut self) -> u64 {
+        let hash = zobrist::hash(self);
+        self.set_zobrist(hash);
+
+        hash
     }
 
     pub fn check_draws(&self) -> bool {
@@ -75,6 +86,7 @@ impl Position {
     pub fn make_move(&mut self, m: Move) {
         let to_move = self.to_move;
         self.stack.clone_push();
+        self.repetition_table.clone_push();
 
         let mut piece = self.mailbox[m.from as usize];
         let from_bit = 1u64 << m.from;
@@ -220,6 +232,7 @@ impl Position {
         }
 
         self.stack.discard_top();
+        self.repetition_table.discard_top();
 
         if m.flags == MoveFlags::EnPassantCapture {
             let sq = (self.en_passant()

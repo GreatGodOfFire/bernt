@@ -6,3 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bernt-position = { path = "../bernt-position" }
+bernt-search = { path = "../bernt-search" }
