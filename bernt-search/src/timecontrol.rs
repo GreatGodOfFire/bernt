@@ -1,4 +1,7 @@
-use std::{time::{Duration, Instant}, sync::atomic::{AtomicBool, Ordering}};
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::{Duration, Instant},
+};
 
 use bernt_position::piece::PieceColor;
 
@@ -46,6 +49,6 @@ impl<'a> TimeControl<'a> {
         if self.max.is_none() {
             return self.stop.load(Ordering::Relaxed);
         }
-        (self.start.elapsed() > self.max.unwrap()) || self.stop.load(Ordering::Relaxed) 
+        (self.start.elapsed() > self.max.unwrap()) || self.stop.load(Ordering::Relaxed)
     }
 }

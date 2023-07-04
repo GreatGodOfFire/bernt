@@ -76,23 +76,29 @@ impl Default for MoveList {
     }
 }
 
+impl From<MoveList> for Box<[Move]> {
+    fn from(movelist: MoveList) -> Self {
+        movelist.array
+    }
+}
+
 impl<'a> IntoIterator for &'a MoveList {
     type Item = Move;
 
     type IntoIter = MoveListIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        MoveListIter(self, 0)
+        MoveListIter(self, 0, self.len)
     }
 }
 
-pub struct MoveListIter<'a>(&'a MoveList, u8);
+pub struct MoveListIter<'a>(&'a MoveList, u8, u8);
 
 impl<'a> Iterator for MoveListIter<'a> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.1 >= self.0.len() {
+        if self.1 >= self.2 {
             return None;
         }
         let x = self.0[self.1 as usize];
@@ -100,6 +106,24 @@ impl<'a> Iterator for MoveListIter<'a> {
         self.1 += 1;
 
         Some(x)
+    }
+}
+
+impl<'a> DoubleEndedIterator for MoveListIter<'a> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.2 <= self.1 {
+            return None;
+        }
+
+        self.2 -= 1;
+
+        Some(self.0[self.2 as usize])
+    }
+}
+
+impl<'a> ExactSizeIterator for MoveListIter<'a> {
+    fn len(&self) -> usize {
+        self.0.len as usize
     }
 }
 
@@ -212,7 +236,7 @@ pub fn king_movegen(position: &Position) -> Moves {
     let player = position.bitboards()[to_move];
     let opponent = position.bitboards()[!to_move];
 
-    king_moves(player[King], empty, !opponent[Empty], &mut movelist);
+    king_moves::<{ flags::DEFAULT }>(player[King], empty, !opponent[Empty], &mut movelist);
 
     if movelist.is_empty() {
         Moves::Checkmate
@@ -253,7 +277,7 @@ pub fn pseudo_legal_movegen(position: &Position, in_check: bool) -> Moves {
     );
 
     // King
-    king_moves(player[King], empty, !opponent[Empty], &mut movelist);
+    king_moves::<{ flags::DEFAULT }>(player[King], empty, !opponent[Empty], &mut movelist);
     if !in_check {
         castling_moves(player[King], to_move, empty, position, &mut movelist);
     }
@@ -272,5 +296,49 @@ pub fn pseudo_legal_movegen(position: &Position, in_check: bool) -> Moves {
         }
     } else {
         Moves::PseudoLegalMoves(movelist)
+    }
+}
+
+pub fn pseudo_legal_movegen_captures(position: &Position) -> Moves {
+    let to_move = position.to_move();
+
+    let player = position.bitboards()[to_move];
+    let opponent = position.bitboards()[!to_move];
+
+    let mut moves = MoveList::new();
+
+    // Sliding
+    rook_moves::<{ flags::CAPTURES }>(
+        player[Rook] | player[Queen],
+        !player[Empty],
+        !opponent[Empty],
+        &mut moves,
+    );
+    bishop_moves::<{ flags::CAPTURES }>(
+        player[Bishop] | player[Queen],
+        !player[Empty],
+        !opponent[Empty],
+        &mut moves,
+    );
+
+    // Knights
+    knight_moves::<{ flags::CAPTURES }>(
+        player[Knight],
+        player[Empty],
+        !opponent[Empty],
+        &mut moves,
+    );
+
+    // King
+    king_moves::<{ flags::CAPTURES }>(player[King], 0, !opponent[Empty], &mut moves);
+
+    // Pawns
+    pawn_attacks(player[Pawn], to_move, !opponent[Empty], &mut moves);
+    en_passant(player[Pawn], to_move, position.en_passant(), &mut moves);
+
+    if moves.is_empty() {
+        Moves::Stalemate
+    } else {
+        Moves::PseudoLegalMoves(moves)
     }
 }

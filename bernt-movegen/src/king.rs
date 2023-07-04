@@ -1,22 +1,31 @@
 use bernt_position::{bitboard::BitIter, piece::PieceColor, Move, MoveFlags, Position};
 
-use crate::MoveList;
+use crate::{flags, MoveList};
 
 use super::{
     is_attacking,
     util::{FILE_A, FILE_H, RANK_1, RANK_8},
 };
 
-pub fn king_moves(king: u64, free_squares: u64, enemies: u64, movelist: &mut MoveList) {
+pub fn king_moves<const FLAGS: u8>(
+    king: u64,
+    free_squares: u64,
+    enemies: u64,
+    movelist: &mut MoveList,
+) {
     let from = king.trailing_zeros() as u8;
     let moves = LOOKUP[from as usize];
 
-    for to in BitIter(moves & free_squares) {
-        movelist.add(Move::new(from, to, MoveFlags::Quiet));
+    if FLAGS & flags::QUIET != 0 {
+        for to in BitIter(moves & free_squares) {
+            movelist.add(Move::new(from, to, MoveFlags::Quiet));
+        }
     }
 
-    for to in BitIter(moves & enemies) {
-        movelist.add(Move::new(from, to, MoveFlags::Capture));
+    if FLAGS & flags::CAPTURES != 0 {
+        for to in BitIter(moves & enemies) {
+            movelist.add(Move::new(from, to, MoveFlags::Capture));
+        }
     }
 }
 

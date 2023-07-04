@@ -10,6 +10,97 @@ impl Position {
         Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
     }
 
+    pub fn as_fen(&self, include_clocks: bool) -> String {
+        let mut empty_squares = 0;
+
+        let mut buf = String::with_capacity(80);
+
+        for rank in self.mailbox.chunks(8).rev() {
+            for piece in rank {
+                match piece.ty {
+                    Empty => {
+                        empty_squares += 1;
+                    }
+                    x => {
+                        if empty_squares != 0 {
+                            buf.push((b'0' + empty_squares as u8) as char);
+                            empty_squares = 0;
+                        }
+                        let is_upper = piece.color == PieceColor::White;
+
+                        let mut c = match x {
+                            Knight => 'n',
+                            Bishop => 'b',
+                            Rook => 'r',
+                            Queen => 'q',
+                            Pawn => 'p',
+                            King => 'k',
+                            Empty => unreachable!(),
+                        };
+                        if is_upper {
+                            c = c.to_ascii_uppercase();
+                        }
+                        buf.push(c);
+                    }
+                }
+            }
+            if empty_squares != 0 {
+                buf.push((b'0' + empty_squares as u8) as char);
+                empty_squares = 0;
+            }
+            buf.push('/');
+        }
+        buf.pop();
+        buf.push(' ');
+        if self.to_move() == PieceColor::White {
+            buf.push('w');
+        } else {
+            buf.push('b');
+        }
+
+        buf.push(' ');
+
+        let mut has_castling = false;
+        if self.castling()[0][1] != -1 {
+            has_castling = true;
+            buf.push('K');
+        }
+        if self.castling()[0][0] != -1 {
+            has_castling = true;
+            buf.push('Q');
+        }
+        if self.castling()[1][1] != -1 {
+            has_castling = true;
+            buf.push('k');
+        }
+        if self.castling()[1][0] != -1 {
+            has_castling = true;
+            buf.push('q');
+        }
+        if !has_castling {
+            buf.push('-');
+        }
+
+        buf.push(' ');
+
+        if self.en_passant() != -1 {
+            let ep = self.en_passant() as u8;
+            buf.push((b'a' + ep % 8) as char);
+            buf.push((b'1' + ep / 8) as char);
+        } else {
+            buf.push('-');
+        }
+
+        if include_clocks {
+            buf.push(' ');
+            buf.push_str(&format!("{}", self.halfmove_clock()));
+            buf.push(' ');
+            buf.push_str(&format!("{}", self.fullmove_clock()));
+        }
+
+        buf
+    }
+
     pub fn from_fen(fen: &str) -> Option<Self> {
         let mut bitboards = [[0; 7]; 2];
         bitboards[0][PieceType::Empty] = u64::MAX;

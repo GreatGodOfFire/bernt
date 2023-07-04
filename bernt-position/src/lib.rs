@@ -69,7 +69,7 @@ impl Position {
         let mut d = 4;
         let mut n = 0;
 
-        while d <= self.halfmove_clock() as usize {
+        while d < self.halfmove_clock() as usize {
             if self.repetition_table[0] == self.repetition_table[d] {
                 n += 1;
                 if n == 2 {
@@ -153,13 +153,14 @@ impl Position {
 
         // castling
         if m.flags == MoveFlags::LeftCastle {
-            self.mailbox[m.to as usize + 1] = self.mailbox[m.to as usize - 2];
+            // self.mailbox[m.to as usize + 1] = self.mailbox[m.to as usize - 2];
+            self.mailbox[m.to as usize + 1] = self.mailbox[self.castling()[to_move][0] as usize];
             self.mailbox[m.to as usize - 2].ty = PieceType::Empty;
             self.bitboards[self.to_move][PieceType::Rook] ^= to_bit >> 2 | to_bit << 1;
             self.bitboards[self.to_move][PieceType::Empty] ^= to_bit >> 2 | to_bit << 1;
         }
         if m.flags == MoveFlags::RightCastle {
-            self.mailbox[m.to as usize - 1] = self.mailbox[m.to as usize + 1];
+            self.mailbox[m.to as usize - 1] = self.mailbox[self.castling()[to_move][1] as usize];
             self.mailbox[m.to as usize + 1].ty = PieceType::Empty;
             self.bitboards[self.to_move][PieceType::Rook] ^= to_bit << 1 | to_bit >> 1;
             self.bitboards[self.to_move][PieceType::Empty] ^= to_bit << 1 | to_bit >> 1;
@@ -259,8 +260,8 @@ impl Position {
 
     // Clears the stack
     pub fn finalize_moves(&mut self) {
-        self.stack.clear();
-        self.repetition_table.retain(self.halfmove_clock());
+        self.stack.retain(1);
+        self.repetition_table.retain(self.halfmove_clock().max(1));
     }
 
     pub fn variant(&self) -> Variant {
@@ -404,6 +405,27 @@ pub enum MoveFlags {
     BishopPromotionCapture,
     RookPromotionCapture,
     QueenPromotionCapture,
+}
+
+impl MoveFlags {
+    fn new_promotion(ty: PieceType) -> Self {
+        match ty {
+            Knight => Self::KnightPromotion,
+            Bishop => Self::BishopPromotion,
+            Rook => Self::RookPromotion,
+            Queen => Self::QueenPromotion,
+            _ => panic!(),
+        }
+    }
+    fn new_promotion_capture(ty: PieceType) -> Self {
+        match ty {
+            Knight => Self::KnightPromotionCapture,
+            Bishop => Self::BishopPromotionCapture,
+            Rook => Self::RookPromotionCapture,
+            Queen => Self::QueenPromotionCapture,
+            _ => panic!(),
+        }
+    }
 }
 
 impl From<MoveFlags> for u8 {

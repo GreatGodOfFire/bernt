@@ -50,6 +50,11 @@ impl<T: Default + Clone> Stack<T> {
 
     #[inline]
     pub fn clone_push(&mut self) {
+        if self.len == 0 {
+            self.array[0] = T::default();
+            self.len += 1;
+            return;
+        }
         self.array[self.len as usize] = self.array[(self.len - 1) as usize].clone();
         self.len += 1;
     }
@@ -69,6 +74,7 @@ impl<T: Default + Clone> Stack<T> {
 
         for x in 0..n {
             self.array[x as usize] = self.array[(self.len - 1 - n + x) as usize].clone();
+            self.len = n;
         }
     }
 }

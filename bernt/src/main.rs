@@ -1,6 +1,6 @@
 use std::io::stdin;
 
-use bernt_position::Position;
+use bernt_position::{Position, bitboard::print_bitboard, piece::PieceType};
 use bernt_search::Limits;
 use thread::start_main;
 
@@ -12,14 +12,14 @@ macro_rules! try_parse {
             $var.$field = Some($field);
         } else {
             break;
-        } 
+        }
     };
     ($var:ident.$field:ident, $ty:ty, $iter:ident) => {
         if let Some(Ok($field)) = $iter.next().map(|x| x.parse::<$ty>()) {
             $var.$field = $field;
         } else {
             break;
-        } 
+        }
     };
 }
 
@@ -49,32 +49,43 @@ fn main() {
                     position = match args.next() {
                         Some("startpos") => {
                             let mut position = Position::startpos();
-                            
+                            position.calc_zobrist();
+
                             if args.next() == Some("moves") {
                                 while let Some(m) = args.next() {
                                     position.make_move_uci(m);
+                                    position.calc_zobrist();
+                                    position.finalize_moves();
                                 }
                             }
 
                             position
-                        },
+                        }
                         Some("fen") => {
                             let mut fen = String::new();
+                            let mut moves = vec![];
 
                             while let Some(arg) = args.next() {
                                 if arg == "moves" {
-                                    position = Position::from_fen(&fen).unwrap();
-
                                     while let Some(m) = args.next() {
-                                        position.make_move_uci(m);
+                                        moves.push(m);
                                     }
                                 } else {
+                                    fen.push(' ');
                                     fen += arg;
                                 }
                             }
 
+                            position = Position::from_fen(fen.trim()).unwrap();
+
+                            for m in moves {
+                                position.make_move_uci(m);
+                                position.calc_zobrist();
+                                position.finalize_moves();
+                            }
+
                             position
-                        },
+                        }
                         Some(_) => continue,
                         None => continue,
                     }
@@ -117,4 +128,3 @@ fn main() {
         buf.clear();
     }
 }
-

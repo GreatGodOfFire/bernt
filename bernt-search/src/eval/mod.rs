@@ -1,73 +1,101 @@
+use bernt_movegen::{is_in_check, pseudo_legal_movegen_captures, Moves};
 use bernt_position::{
-    piece::PieceType::{self, *},
+    piece::{
+        PieceColor,
+        PieceType::{self, *},
+    },
     Position,
 };
 
-#[inline]
-pub fn evaluate(position: &Position) -> i32 {
-    evaluate_with(position, Tables::default())
+pub mod pst;
+
+pub fn quiesce(position: &mut Position, plies: u8, alpha: i32, beta: i32, max_depth: u8) -> i32 {
+    let mut alpha = alpha;
+    let eval = evaluate(position);
+    if eval >= beta {
+        return beta;
+    }
+    if alpha < eval {
+        alpha = eval;
+    }
+
+    if plies >= max_depth {
+        return alpha;
+    }
+
+    let captures = pseudo_legal_movegen_captures(position);
+    if let Moves::PseudoLegalMoves(captures) = captures {
+        for m in &captures {
+            position.make_move(m);
+            if !is_in_check(position, !position.to_move()) {
+                let eval = -quiesce(position, plies + 1, -beta, -alpha, max_depth);
+
+                if eval >= beta {
+                    position.unmake_move(m);
+                    return beta;
+                }
+                if eval > alpha {
+                    alpha = eval;
+                }
+            }
+            position.unmake_move(m);
+        }
+    }
+
+    alpha
 }
 
-pub fn evaluate_with(position: &Position, tables: Tables) -> i32 {
-    let mut mg = [0; 2];
-    let mut eg = [0; 2];
-    let mut game_phase = 0;
+#[inline]
+pub fn evaluate(position: &Position) -> i32 {
+    // let mut opening = 0;
+    let mut midgame = 0;
+    let mut endgame = 0;
+
+    let mut phase = 0;
 
     for sq in 0..64 {
         let piece = position.mailbox()[sq];
         if piece.ty != PieceType::Empty {
-            mg[piece.color] += tables.mg_table[piece.ty];
-            eg[piece.color] += tables.eg_table[piece.ty];
-            game_phase += tables.gamephase_inc[piece.ty];
+            phase += GAMEPHASE_INC[piece.ty];
+            if piece.color == PieceColor::White {
+                // opening += tables.opening[piece.ty][sq];
+                midgame += pst::MIDGAME[piece.ty][flip(sq)];
+                endgame += pst::ENDGAME[piece.ty][flip(sq)];
+            } else {
+                // opening -= tables.opening[piece.ty][flip(sq)];
+                midgame -= pst::MIDGAME[piece.ty][sq];
+                endgame -= pst::ENDGAME[piece.ty][sq];
+            }
         }
     }
 
-    let mg_score = mg[position.to_move()] - mg[!position.to_move()];
-    let eg_score = eg[position.to_move()] - eg[!position.to_move()];
-    let mg_phase = game_phase.min(24);
-    let eg_phase = 24 - mg_phase;
+    let phase = phase.min(max_phase());
+    let eval = (midgame * phase + (max_phase() - phase) * endgame) / max_phase();
 
-    (mg_score * mg_phase + eg_score * eg_phase) / 24
-}
+    // let phase = 256 - phase.min(256);
+    // let eval = ((opening * (128 - phase).max(0) * 2)
+    //     + (midgame * (-(phase - 128).abs() * 2 + 256))
+    //     + (endgame * (phase - 128).max(0) * 2))
+    //     / 256;
 
-pub struct Tables {
-    gamephase_inc: [i32; 6],
-    mg_table: [i32; 6],
-    eg_table: [i32; 6],
-}
-
-impl Tables {
-    pub const fn default() -> Self {
-        Self {
-            gamephase_inc: GAMEPHASE_INC,
-            mg_table: MG_TABLE,
-            eg_table: EG_TABLE,
-        }
+    if position.to_move() == PieceColor::White {
+        eval
+    } else {
+        -eval
     }
 }
 
-const GAMEPHASE_INC: [i32; 6] = [1, 1, 2, 4, 0, 0];
-const MG_TABLE: [i32; 6] = {
-    let mut table = [0; 6];
+pub const GAMEPHASE_INC: [i32; 6] = [4, 4, 8, 16, 0, 0];
 
-    table[Pawn as usize] = 90;
-    table[Knight as usize] = 300;
-    table[Bishop as usize] = 300;
-    table[Rook as usize] = 500;
-    table[Queen as usize] = 900;
-    table[King as usize] = 0;
+const fn max_phase() -> i32 {
+    GAMEPHASE_INC[Pawn as usize] * 16
+        + GAMEPHASE_INC[Knight as usize] * 4
+        + GAMEPHASE_INC[Bishop as usize] * 4
+        + GAMEPHASE_INC[Rook as usize] * 4
+        + GAMEPHASE_INC[Queen as usize] * 2
+}
 
-    table
-};
-const EG_TABLE: [i32; 6] = {
-    let mut table = [0; 6];
-
-    table[Pawn as usize] = 110;
-    table[Knight as usize] = 270;
-    table[Bishop as usize] = 330;
-    table[Rook as usize] = 550;
-    table[Queen as usize] = 1000;
-    table[King as usize] = 0;
-
-    table
-};
+#[inline]
+pub fn flip(sq: usize) -> usize {
+    sq ^ 56
+}

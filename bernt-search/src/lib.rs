@@ -1,10 +1,8 @@
-use std::{
-    time::Duration, sync::atomic::AtomicBool,
-};
+use std::{sync::atomic::AtomicBool, time::Duration};
 
 use bernt_movegen::{is_in_check, movegen, MoveList, Moves};
-use bernt_position::{Move, Position};
-use eval::evaluate;
+use bernt_position::{Move, Position, piece::PieceType};
+use eval::{evaluate, quiesce};
 use timecontrol::TimeControl;
 
 pub mod eval;
@@ -25,9 +23,9 @@ pub struct Limits {
     pub movestogo: Option<u64>,
 }
 
-const MAX_DEPTH: u8 = 255;
-const MAX_EVAL: i32 = 10000000;
-const CHECKMATE: i32 = 1000000;
+pub const MAX_DEPTH: u8 = 255;
+pub const MAX_EVAL: i32 = 1000000;
+pub const CHECKMATE: i32 = 100000;
 
 impl Default for Limits {
     fn default() -> Self {
@@ -50,7 +48,7 @@ impl SearchState {
         }
     }
 
-    pub fn search(&mut self, stop: &AtomicBool) -> Move {
+    pub fn search(&mut self, stop: &AtomicBool, print: bool) -> Option<Move> {
         if let Moves::PseudoLegalMoves(movelist) = movegen(&self.position) {
             let tc = TimeControl::new(&self.limits, self.position.to_move(), stop);
             let mut legal_moves = MoveList::new();
@@ -85,15 +83,21 @@ impl SearchState {
                 self.position.unmake_move(m);
             }
 
-            if legal_moves.len() == 1 {
-                return legal_moves[0];
+            if legal_moves.len() == 0 {
+                return None;
+            } else if legal_moves.len() == 1 {
+                return Some(legal_moves[0]);
             }
 
             if best.0.abs() == CHECKMATE {
-                println!("info depth 1 score mate 1 nodes {nodes} pv {}", best.1);
-                return best.1;
+                if print {
+                    println!("info depth 1 score mate 1 nodes {nodes} pv {}", best.1);
+                }
+                return Some(best.1);
             }
-            print_info(1, best.0, best.1, &best.2, tc.start.elapsed(), nodes);
+            if print {
+                print_info(1, best.0, best.1, &best.2, tc.start.elapsed(), nodes);
+            }
 
             let mut depth = 2;
 
@@ -130,6 +134,7 @@ impl SearchState {
                         depth - 1,
                         &tc,
                         &mut nodes,
+                        self.limits.depth,
                     ) {
                         let score = -score;
                         if score > best.0 {
@@ -138,7 +143,8 @@ impl SearchState {
                             best.2 = pv;
                         }
                     } else {
-                        return previous_best;
+                        self.position.unmake_move(m);
+                        return Some(previous_best);
                     }
 
                     self.position.unmake_move(m);
@@ -147,27 +153,31 @@ impl SearchState {
                 if best.0.abs() >= CHECKMATE {
                     let plies = best.0.abs() - CHECKMATE;
 
-                    print!(
-                        "info depth {depth} score mate {} time {} nodes {nodes} nps {} pv {}",
-                        1 + ((plies - 1) / 2) * best.0.signum(),
-                        tc.start.elapsed().as_millis(),
-                        (nodes as f64 / tc.start.elapsed().as_secs_f64()) as u64,
-                        best.1
-                    );
-                    for m in &best.2 {
-                        print!(" {m}");
+                    if print {
+                        print!(
+                            "info depth {depth} score mate {} time {} nodes {nodes} nps {} pv {}",
+                            1 + ((plies - 1) / 2) * best.0.signum(),
+                            tc.start.elapsed().as_millis(),
+                            (nodes as f64 / tc.start.elapsed().as_secs_f64()) as u64,
+                            best.1
+                        );
+                        for m in (&best.2).into_iter().rev() {
+                            print!(" {m}");
+                        }
+                        println!();
                     }
-                    println!();
-                    return best.1;
+                    return Some(best.1);
                 }
-                print_info(depth, best.0, best.1, &best.2, tc.start.elapsed(), nodes);
+                if print {
+                    print_info(depth, best.0, best.1, &best.2, tc.start.elapsed(), nodes);
+                }
 
                 depth += 1;
             }
 
-            best.1
+            Some(best.1)
         } else {
-            panic!()
+            None
         }
     }
 }
@@ -186,9 +196,13 @@ fn alpha_beta(
     depth: u8,
     tc: &TimeControl,
     nodes: &mut u64,
+    max_depth: u8,
 ) -> Option<(i32, MoveList)> {
     if depth == 0 {
-        return Some((evaluate(position), MoveList::new()));
+        return Some((
+            quiesce(position, plies, alpha, beta, max_depth),
+            MoveList::new(),
+        ));
     }
 
     match movegen(position) {
@@ -201,7 +215,7 @@ fn alpha_beta(
             for m in &moves {
                 position.make_move(m);
 
-                if !is_in_check(position, !position.to_move()) {
+                if position.bitboards()[position.to_move()][PieceType::King] != 0 && position.bitboards()[!position.to_move()][PieceType::King] != 0 && !is_in_check(position, !position.to_move()) {
                     legal_moves_count += 1;
 
                     *nodes += 1;
@@ -234,6 +248,7 @@ fn alpha_beta(
                         depth - 1,
                         tc,
                         nodes,
+                        max_depth,
                     )?;
                     _pv.add(m);
                     let s = -s;
@@ -251,7 +266,7 @@ fn alpha_beta(
             }
 
             if legal_moves_count == 0 && in_check {
-                Some((-CHECKMATE, pv))
+                Some((-CHECKMATE - plies as i32, pv))
             } else if legal_moves_count == 0 {
                 Some((0, pv))
             } else {
@@ -271,7 +286,7 @@ fn print_info(depth: u8, score: i32, m: Move, pv: &MoveList, elapsed: Duration, 
         (nodes as f64 / elapsed.as_secs_f64()) as u64,
         m,
     );
-    for m in pv {
+    for m in (&pv).into_iter().rev() {
         print!(" {m}");
     }
     println!();
