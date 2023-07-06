@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 bernt-position = { path = "../bernt-position" }
+bernt-movegen = { path = "../bernt-movegen" }
 bernt-search = { path = "../bernt-search" }

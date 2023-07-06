@@ -1,36 +1,22 @@
-use std::{
-    fs::File,
-    io::{stdin, stdout, Write},
-    sync::atomic::AtomicBool,
-};
+use std::{fs::File, io::{Write, stdout, stdin}, sync::atomic::AtomicBool, env};
 
 use bernt_movegen::{is_in_check, movegen, MoveList, Moves};
-use bernt_position::{
-    bitboard::print_bitboard,
-    piece::{PieceColor, PieceType},
-    Move, MoveFlags, Position,
-};
+use bernt_position::{piece::PieceColor, MoveFlags, Position};
 use bernt_search::{eval::quiesce, SearchState, CHECKMATE, MAX_DEPTH, MAX_EVAL};
 
-const DEPTH: u8 = 5;
+const DEPTH: u8 = 4;
 
 fn main() {
-    // print!("Number of positions: ");
-    // stdout().flush().unwrap();
-    // let mut n_pos = String::new();
-    // stdin().read_line(&mut n_pos).unwrap();
-    // let n_pos: u32 = n_pos.trim().parse().unwrap();
-    let n_pos: u32 = 1000;
+    let n_pos: usize = env::args().nth(1).map(|x| x.parse().ok()).flatten().unwrap_or(1000);
+    let output = env::args().nth(2).unwrap_or("positions.txt".to_string());
 
-    // print!("Output file: ");
-    // stdout().flush().unwrap();
-    // let mut output = String::new();
-    // stdin().read_line(&mut output).unwrap();
-    let output = "out.txt";
+    println!("Generating {n_pos} positions and saving them in {output}...");
 
     let mut i = 0;
 
     let mut output = File::create(output.trim()).unwrap();
+
+    println!();
 
     'games: while i < n_pos {
         let n_moves = fastrand::usize(6..=10);
@@ -57,7 +43,7 @@ fn main() {
 
         let s = evaluate(&mut state.position, -MAX_EVAL, MAX_EVAL, 0, DEPTH);
 
-        if s.abs() > 1000 || s.abs() < 200 {
+        if s.abs() > 1000 {
             continue;
         }
 
@@ -66,39 +52,40 @@ fn main() {
         state.position.calc_zobrist();
         state.limits.depth = DEPTH;
 
-        println!("{}", state.position.as_fen(false));
         let res = loop {
-            print_bitboard(state.position.bitboards()[state.position.to_move()][PieceType::King]);
             if let Some(m) = state.search(&AtomicBool::new(false), false) {
-                println!("{m}:{:?}", m.flags);
-                if m.flags == MoveFlags::Quiet && i < n_pos {
+                if m.flags == MoveFlags::Quiet && i.saturating_sub(10) < n_pos {
                     positions.push(state.position.as_fen(false));
                     i += 1;
+                    if i > 10 {
+                        println!("\x1b[F{}/{n_pos} positions", i - 10);
+                    }
                 }
                 state.position.make_move(m);
                 state.position.calc_zobrist();
-                if state.position.check_draws() || state.position.fullmove_clock() >= 300 {
+                if state.position.check_draws() || state.position.fullmove_clock() >= 200 {
                     break 0.5;
                 }
                 state.position.finalize_moves();
-            } else {
-                if is_in_check(&state.position, state.position.to_move()) {
-                    if state.position.to_move() == PieceColor::White {
-                        break 0.0;
-                    } else {
-                        break 1.0;
-                    }
+            } else if is_in_check(&state.position, state.position.to_move()) {
+                if state.position.to_move() == PieceColor::White {
+                    break 0.0;
                 } else {
-                    break 0.5;
+                    break 1.0;
                 }
+            } else {
+                break 0.5;
             }
         };
 
-        for pos in positions {
+        i -= positions.len().min(10);
+        for (_, pos) in positions
+            .iter()
+            .enumerate()
+            .filter(|(i, _x)| *i < positions.len().saturating_sub(10))
+        {
             output.write_fmt(format_args!("{pos}:{res:.1}\n")).unwrap();
         }
-
-        i += 1;
     }
 }
 

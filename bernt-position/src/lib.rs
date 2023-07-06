@@ -119,10 +119,10 @@ impl Position {
 
             // take castling rights
             if target.ty == PieceType::Rook {
-                if m.to.wrapping_sub(56 * !self.to_move as u8) == 0 {
+                if m.to == self.castling()[!to_move][0] as u8 {
                     self.castling_mut()[!to_move][0] = -1;
                 }
-                if m.to.wrapping_sub(56 * !self.to_move as u8) == 7 {
+                if m.to == self.castling()[!to_move][1] as u8 {
                     self.castling_mut()[!to_move][1] = -1;
                 }
             }
@@ -170,10 +170,10 @@ impl Position {
         if piece.ty == PieceType::King {
             self.castling_mut()[to_move] = [-1, -1];
         }
-        if piece.ty == PieceType::Rook && (m.from == 56 * self.to_move as u8) {
+        if m.from == self.castling()[to_move][0] as u8 {
             self.castling_mut()[to_move][0] = -1;
         }
-        if piece.ty == PieceType::Rook && (m.from == 56 * self.to_move as u8 + 7) {
+        if m.from == self.castling()[to_move][1] as u8 {
             self.castling_mut()[to_move][1] = -1;
         }
 

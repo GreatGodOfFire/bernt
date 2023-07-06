@@ -1,6 +1,7 @@
-use std::io::stdin;
+use std::{io::stdin, time::Instant};
 
-use bernt_position::{Position, bitboard::print_bitboard, piece::PieceType};
+use bernt_movegen::perft::perft;
+use bernt_position::Position;
 use bernt_search::Limits;
 use thread::start_main;
 
@@ -88,6 +89,16 @@ fn main() {
                         }
                         Some(_) => continue,
                         None => continue,
+                    }
+                }
+                "perft" => {
+                    if let Some(depth) = args.next().map(|x| x.parse().ok()).flatten() {
+                        let now = Instant::now();
+                        let x = perft(&mut position, depth);
+                        let elapsed = now.elapsed();
+                        println!("Nodes: {x}");
+                        println!("Elapsed: {elapsed:?}");
+                        println!("Nodes per second: {:.0}", x as f64 / elapsed.as_secs_f64());
                     }
                 }
                 "go" => {

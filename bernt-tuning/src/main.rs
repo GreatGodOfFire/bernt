@@ -63,7 +63,13 @@ fn main() {
                     })
                     .collect();
 
-                println!("{}", tune(&mut positions, Params::default()));
+                let n_epochs = env::args()
+                    .nth(2)
+                    .map(|x| x.parse().ok())
+                    .flatten()
+                    .unwrap_or(u64::MAX);
+
+                println!("{}", tune(&mut positions, Params::default(), n_epochs));
             }
             Ok(m) if m.is_dir() => {
                 eprintln!("Expected a file")
@@ -75,7 +81,7 @@ fn main() {
     }
 }
 
-fn tune(positions: &[TuningPosition], initial: Params) -> Params {
+fn tune(positions: &[TuningPosition], initial: Params, n_epochs: u64) -> Params {
     let param_count = Params::param_count();
     let (k, mut best_e) = initial_error(positions, &initial);
     let mut best = initial;
@@ -83,10 +89,10 @@ fn tune(positions: &[TuningPosition], initial: Params) -> Params {
 
     let mut epoch = 0;
 
-    while improved {
+    while improved && epoch < n_epochs {
         println!("E:     {best_e:.7}");
-        print!("Epoch: {epoch}");
-        print!("\x1b[F");
+        println!("Epoch: {epoch}");
+        print!("\x1b[F\x1b[F");
         stdout().flush().unwrap();
         epoch += 1;
 
@@ -109,6 +115,7 @@ fn tune(positions: &[TuningPosition], initial: Params) -> Params {
             }
         }
     }
+    println!("\n");
 
     best
 }

@@ -1,7 +1,7 @@
 use std::{sync::atomic::AtomicBool, time::Duration};
 
 use bernt_movegen::{is_in_check, movegen, MoveList, Moves};
-use bernt_position::{Move, Position, piece::PieceType};
+use bernt_position::{piece::PieceType, Move, Position};
 use eval::{evaluate, quiesce};
 use timecontrol::TimeControl;
 
@@ -83,7 +83,7 @@ impl SearchState {
                 self.position.unmake_move(m);
             }
 
-            if legal_moves.len() == 0 {
+            if legal_moves.is_empty() {
                 return None;
             } else if legal_moves.len() == 1 {
                 return Some(legal_moves[0]);
@@ -188,6 +188,7 @@ impl Default for SearchState {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn alpha_beta(
     position: &mut Position,
     alpha: i32,
@@ -200,7 +201,7 @@ fn alpha_beta(
 ) -> Option<(i32, MoveList)> {
     if depth == 0 {
         return Some((
-            quiesce(position, plies, alpha, beta, max_depth),
+            quiesce(position, plies + 1, alpha, beta, max_depth),
             MoveList::new(),
         ));
     }
@@ -215,7 +216,10 @@ fn alpha_beta(
             for m in &moves {
                 position.make_move(m);
 
-                if position.bitboards()[position.to_move()][PieceType::King] != 0 && position.bitboards()[!position.to_move()][PieceType::King] != 0 && !is_in_check(position, !position.to_move()) {
+                if position.bitboards()[position.to_move()][PieceType::King] != 0
+                    && position.bitboards()[!position.to_move()][PieceType::King] != 0
+                    && !is_in_check(position, !position.to_move())
+                {
                     legal_moves_count += 1;
 
                     *nodes += 1;
@@ -286,7 +290,7 @@ fn print_info(depth: u8, score: i32, m: Move, pv: &MoveList, elapsed: Duration, 
         (nodes as f64 / elapsed.as_secs_f64()) as u64,
         m,
     );
-    for m in (&pv).into_iter().rev() {
+    for m in pv.into_iter().rev() {
         print!(" {m}");
     }
     println!();

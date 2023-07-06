@@ -73,7 +73,7 @@ impl<T: Default + Clone> Stack<T> {
         }
 
         for x in 0..n {
-            self.array[x as usize] = self.array[(self.len - 1 - n + x) as usize].clone();
+            self.array[x as usize] = self.array[(self.len - 1 - x) as usize].clone();
             self.len = n;
         }
     }
