@@ -7,9 +7,11 @@ use bernt_position::{
     Position,
 };
 
+use crate::MAX_DEPTH;
+
 pub mod pst;
 
-pub fn quiesce(position: &mut Position, plies: u8, alpha: i32, beta: i32, max_depth: u8) -> i32 {
+pub fn quiesce(position: &mut Position, plies: u8, alpha: i32, beta: i32) -> i32 {
     let mut alpha = alpha;
     let eval = evaluate(position);
     if eval >= beta {
@@ -19,7 +21,7 @@ pub fn quiesce(position: &mut Position, plies: u8, alpha: i32, beta: i32, max_de
         alpha = eval;
     }
 
-    if plies >= max_depth {
+    if plies >= MAX_DEPTH {
         return alpha;
     }
 
@@ -28,7 +30,7 @@ pub fn quiesce(position: &mut Position, plies: u8, alpha: i32, beta: i32, max_de
         for m in &captures {
             position.make_move(m);
             if !is_in_check(position, !position.to_move()) {
-                let eval = -quiesce(position, plies + 1, -beta, -alpha, max_depth);
+                let eval = -quiesce(position, plies + 1, -beta, -alpha);
 
                 if eval >= beta {
                     position.unmake_move(m);
@@ -59,12 +61,12 @@ pub fn evaluate(position: &Position) -> i32 {
             phase += GAMEPHASE_INC[piece.ty];
             if piece.color == PieceColor::White {
                 // opening += tables.opening[piece.ty][sq];
-                midgame += pst::MIDGAME[piece.ty][flip(sq)];
-                endgame += pst::ENDGAME[piece.ty][flip(sq)];
+                midgame += pst::MIDGAME[piece.ty][sq];
+                endgame += pst::ENDGAME[piece.ty][sq];
             } else {
                 // opening -= tables.opening[piece.ty][flip(sq)];
-                midgame -= pst::MIDGAME[piece.ty][sq];
-                endgame -= pst::ENDGAME[piece.ty][sq];
+                midgame -= pst::MIDGAME[piece.ty][flip(sq)];
+                endgame -= pst::ENDGAME[piece.ty][flip(sq)];
             }
         }
     }

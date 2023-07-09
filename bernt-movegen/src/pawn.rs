@@ -1,4 +1,4 @@
-use bernt_position::{bitboard::BitIter, piece::PieceColor, Move, MoveFlags};
+use bernt_position::{bitboard::BitIter, piece::PieceColor, Move, MoveType};
 
 use crate::MoveList;
 
@@ -22,16 +22,16 @@ pub fn single_pawn_moves(pawns: u64, color: PieceColor, empty: u64, movelist: &m
     for (from, to) in
         BitIter(movable_pawns & !promoting_piece_mask).zip(BitIter(moves & !promotions_mask))
     {
-        movelist.add(Move::new(from, to, MoveFlags::Quiet));
+        movelist.add(Move::new(from, to, MoveType::Quiet));
     }
 
     for (from, to) in
         BitIter(movable_pawns & promoting_piece_mask).zip(BitIter(moves & promotions_mask))
     {
-        movelist.add(Move::new(from, to, MoveFlags::KnightPromotion));
-        movelist.add(Move::new(from, to, MoveFlags::BishopPromotion));
-        movelist.add(Move::new(from, to, MoveFlags::RookPromotion));
-        movelist.add(Move::new(from, to, MoveFlags::QueenPromotion));
+        movelist.add(Move::new(from, to, MoveType::KnightPromotion));
+        movelist.add(Move::new(from, to, MoveType::BishopPromotion));
+        movelist.add(Move::new(from, to, MoveType::RookPromotion));
+        movelist.add(Move::new(from, to, MoveType::QueenPromotion));
     }
 }
 
@@ -49,7 +49,7 @@ fn double_pawn_moves_white(pawns: u64, empty: u64, movelist: &mut MoveList) {
     let moves = free_pawns << 16;
 
     for (from, to) in BitIter(free_pawns).zip(BitIter(moves)) {
-        movelist.add(Move::new(from, to, MoveFlags::DoublePawnPush));
+        movelist.add(Move::new(from, to, MoveType::DoublePawnPush));
     }
 }
 
@@ -60,22 +60,22 @@ fn double_pawn_moves_black(pawns: u64, empty: u64, movelist: &mut MoveList) {
     let moves = free_pawns >> 16;
 
     for (from, to) in BitIter(free_pawns).zip(BitIter(moves)) {
-        movelist.add(Move::new(from, to, MoveFlags::DoublePawnPush));
+        movelist.add(Move::new(from, to, MoveType::DoublePawnPush));
     }
 }
 
 pub fn pawn_attacks(pawns: u64, color: PieceColor, enemies: u64, movelist: &mut MoveList) {
     for from in BitIter(pawns) {
         for to in BitIter(ATTACKS_LOOKUP[color][from as usize] & enemies & !(RANK_1 | RANK_8)) {
-            movelist.add(Move::new(from, to, MoveFlags::Capture));
+            movelist.add(Move::new(from, to, MoveType::Capture));
         }
 
         // Promotions
         for to in BitIter(ATTACKS_LOOKUP[color][from as usize] & enemies & (RANK_1 | RANK_8)) {
-            movelist.add(Move::new(from, to, MoveFlags::KnightPromotionCapture));
-            movelist.add(Move::new(from, to, MoveFlags::BishopPromotionCapture));
-            movelist.add(Move::new(from, to, MoveFlags::RookPromotionCapture));
-            movelist.add(Move::new(from, to, MoveFlags::QueenPromotionCapture));
+            movelist.add(Move::new(from, to, MoveType::KnightPromotionCapture));
+            movelist.add(Move::new(from, to, MoveType::BishopPromotionCapture));
+            movelist.add(Move::new(from, to, MoveType::RookPromotionCapture));
+            movelist.add(Move::new(from, to, MoveType::QueenPromotionCapture));
         }
     }
 }
@@ -101,7 +101,7 @@ pub fn en_passant(pawns: u64, color: PieceColor, en_passant: i8, movelist: &mut 
         movelist.add(Move::new(
             from,
             en_passant as u8,
-            MoveFlags::EnPassantCapture,
+            MoveType::EnPassantCapture,
         ));
     }
 }

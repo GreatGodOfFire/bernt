@@ -99,7 +99,7 @@ impl Position {
         }
 
         // captures
-        if m.flags == MoveFlags::EnPassantCapture {
+        if m.ty == MoveType::EnPassantCapture {
             let sq = (self.en_passant()
                 + match self.to_move {
                     PieceColor::White => -8,
@@ -135,7 +135,7 @@ impl Position {
         self.set_en_passant(-1);
 
         // en passant
-        if m.flags == MoveFlags::DoublePawnPush {
+        if m.ty == MoveType::DoublePawnPush {
             self.set_en_passant(match self.to_move {
                 PieceColor::White => m.to as i8 - 8,
                 PieceColor::Black => m.to as i8 + 8,
@@ -152,14 +152,14 @@ impl Position {
         }
 
         // castling
-        if m.flags == MoveFlags::LeftCastle {
+        if m.ty == MoveType::LeftCastle {
             // self.mailbox[m.to as usize + 1] = self.mailbox[m.to as usize - 2];
             self.mailbox[m.to as usize + 1] = self.mailbox[self.castling()[to_move][0] as usize];
             self.mailbox[m.to as usize - 2].ty = PieceType::Empty;
             self.bitboards[self.to_move][PieceType::Rook] ^= to_bit >> 2 | to_bit << 1;
             self.bitboards[self.to_move][PieceType::Empty] ^= to_bit >> 2 | to_bit << 1;
         }
-        if m.flags == MoveFlags::RightCastle {
+        if m.ty == MoveType::RightCastle {
             self.mailbox[m.to as usize - 1] = self.mailbox[self.castling()[to_move][1] as usize];
             self.mailbox[m.to as usize + 1].ty = PieceType::Empty;
             self.bitboards[self.to_move][PieceType::Rook] ^= to_bit << 1 | to_bit >> 1;
@@ -207,14 +207,14 @@ impl Position {
             }
         }
 
-        if m.flags == MoveFlags::LeftCastle {
+        if m.ty == MoveType::LeftCastle {
             let rook_from = to_move as usize * 56;
             let rook_to = rook_from + 3;
             self.mailbox[rook_from] = self.mailbox[rook_to];
             self.mailbox[rook_to].ty = PieceType::Empty;
             self.bitboards[to_move][PieceType::Rook] ^= 1 << rook_from | 1 << rook_to;
             self.bitboards[to_move][Empty] ^= 1 << rook_from | 1 << rook_to;
-        } else if m.flags == MoveFlags::RightCastle {
+        } else if m.ty == MoveType::RightCastle {
             let rook_from = 7 + to_move as usize * 56;
             let rook_to = rook_from - 2;
             self.mailbox[rook_from] = self.mailbox[rook_to];
@@ -235,7 +235,7 @@ impl Position {
         self.stack.discard_top();
         self.repetition_table.discard_top();
 
-        if m.flags == MoveFlags::EnPassantCapture {
+        if m.ty == MoveType::EnPassantCapture {
             let sq = (self.en_passant()
                 + match to_move {
                     PieceColor::White => -8,
@@ -273,29 +273,29 @@ impl Position {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Move {
     pub from: u8,
     pub to: u8,
-    pub flags: MoveFlags,
+    pub ty: MoveType,
 }
 
 impl Move {
     #[inline]
-    pub fn new(from: u8, to: u8, flags: MoveFlags) -> Self {
-        Self { from, to, flags }
+    pub fn new(from: u8, to: u8, ty: MoveType) -> Self {
+        Self { from, to, ty }
     }
 
     #[inline]
     pub fn is_capture(&self) -> bool {
-        self.flags as u8 & 4 != 0
+        self.ty as u8 & 4 != 0
     }
 
     #[inline]
     pub fn promotion(&self) -> Option<PieceType> {
-        if self.flags as u8 & 8 != 0 {
+        if self.ty as u8 & 8 != 0 {
             // Safety: Safe because there are only 2 bits are remaining and PieceType has more than 2**2 = 4 variants (starting at 0)
-            Some(unsafe { mem::transmute(self.flags as u8 & 3) })
+            Some(unsafe { mem::transmute(self.ty as u8 & 3) })
         } else {
             None
         }
@@ -303,7 +303,7 @@ impl Move {
 
     #[inline]
     pub fn null() -> Self {
-        Self::new(0, 0, MoveFlags::Quiet)
+        Self::new(0, 0, MoveType::Quiet)
     }
 
     pub fn from_uci(position: &Position, s: &str) -> Option<Self> {
@@ -336,19 +336,19 @@ impl Move {
 
             match (piece.ty, to as i8 - from as i8) {
                 (PieceType::King, 2) => {
-                    return Some(Move::new(from, to, MoveFlags::RightCastle));
+                    return Some(Move::new(from, to, MoveType::RightCastle));
                 }
                 (PieceType::King, -2) => {
-                    return Some(Move::new(from, to, MoveFlags::LeftCastle));
+                    return Some(Move::new(from, to, MoveType::LeftCastle));
                 }
                 (PieceType::Pawn, -16 | 16) => {
-                    return Some(Move::new(from, to, MoveFlags::DoublePawnPush));
+                    return Some(Move::new(from, to, MoveType::DoublePawnPush));
                 }
                 _ => {}
             }
 
             if to as i8 == position.en_passant() && piece.ty == PieceType::Pawn {
-                return Some(Move::new(from, to, MoveFlags::EnPassantCapture));
+                return Some(Move::new(from, to, MoveType::EnPassantCapture));
             }
 
             if destination.ty != PieceType::Empty {
@@ -388,9 +388,10 @@ impl Display for Move {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 #[repr(u16)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum MoveFlags {
+pub enum MoveType {
+    #[default]
     Quiet = 0,
     DoublePawnPush,
     RightCastle,
@@ -407,7 +408,7 @@ pub enum MoveFlags {
     QueenPromotionCapture,
 }
 
-impl MoveFlags {
+impl MoveType {
     fn new_promotion(ty: PieceType) -> Self {
         match ty {
             Knight => Self::KnightPromotion,
@@ -428,8 +429,8 @@ impl MoveFlags {
     }
 }
 
-impl From<MoveFlags> for u8 {
-    fn from(code: MoveFlags) -> Self {
+impl From<MoveType> for u8 {
+    fn from(code: MoveType) -> Self {
         code as u8
     }
 }

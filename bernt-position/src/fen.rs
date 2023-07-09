@@ -227,7 +227,6 @@ impl Position {
         let en_passant = match parts[3] {
             "-" => -1,
             s => {
-                println!("{s}");
                 let chars = s.chars().collect::<Vec<char>>();
                 if chars.len() != 2 {
                     return None;

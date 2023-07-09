@@ -2,6 +2,10 @@ use std::{
     env,
     fs::{self, read_to_string},
     io::{stdout, Write},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 use bernt_position::{piece::PieceType, Position};
@@ -87,13 +91,23 @@ fn tune(positions: &[TuningPosition], initial: Params, n_epochs: u64) -> Params 
     let mut best = initial;
     let mut improved = true;
 
-    let mut epoch = 0;
+    let mut epoch = 1;
 
-    while improved && epoch < n_epochs {
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+
+    ctrlc::set_handler(move || {
+        println!("Received Ctrl-C, finishing last iteration...");
+        r.store(false, Ordering::SeqCst);
+    })
+    .expect("Error setting Ctrl-C handler");
+
+    println!("\n");
+
+    while improved && epoch <= n_epochs && running.load(Ordering::SeqCst) {
+        print!("\x1b[F\x1b[F");
         println!("E:     {best_e:.7}");
         println!("Epoch: {epoch}");
-        print!("\x1b[F\x1b[F");
-        stdout().flush().unwrap();
         epoch += 1;
 
         improved = false;
@@ -115,7 +129,6 @@ fn tune(positions: &[TuningPosition], initial: Params, n_epochs: u64) -> Params 
             }
         }
     }
-    println!("\n");
 
     best
 }

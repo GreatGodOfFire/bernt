@@ -40,8 +40,8 @@ pub enum Moves {
 
 #[derive(Debug, Clone)]
 pub struct MoveList {
-    array: Box<[Move; 256]>,
-    len: u8,
+    pub array: Box<[Move; 256]>,
+    pub len: u8,
 }
 
 impl MoveList {

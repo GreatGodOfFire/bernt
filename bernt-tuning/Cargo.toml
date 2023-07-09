@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 bernt-position = { path = "../bernt-position/" }
 bernt-search = { path = "../bernt-search/" }
+ctrlc = "3.4"

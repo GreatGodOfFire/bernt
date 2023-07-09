@@ -4,11 +4,13 @@ use std::sync::{
 };
 
 use bernt_position::Position;
-use bernt_search::{Limits, SearchState};
+use bernt_search::{tt::TranspositionTable, Limits, SearchState};
 
+#[derive(Clone)]
 pub struct ThreadHandle {
     pub stop: Arc<AtomicBool>,
     pub searching: Arc<(Mutex<bool>, Condvar)>,
+    pub tt: Arc<Mutex<TranspositionTable>>,
     pub data: Arc<Mutex<(Position, Limits)>>,
 }
 
@@ -18,57 +20,57 @@ impl ThreadHandle {
     }
 
     pub fn start_search(&self, position: Position, limits: Limits) {
-        self.wait_for_search_finish();
-        let mut searching = self.searching.0.lock().unwrap();
-        self.stop.store(false, Ordering::Relaxed);
-        *searching = true;
-        self.data.lock().unwrap().0 = position;
-        self.data.lock().unwrap().1 = limits;
-        self.searching.1.notify_one();
-    }
-
-    #[inline]
-    pub fn wait_for_search_finish(&self) {
-        let searching = &self.searching.0;
-        let _g = self
+        let mut g = self
             .searching
             .1
-            .wait_while(searching.lock().unwrap(), |x| *x)
+            .wait_while(self.searching.0.lock().unwrap(), |x| *x)
             .unwrap();
+
+        self.stop.store(false, Ordering::Relaxed);
+
+        *self.data.lock().unwrap() = (position, limits);
+
+        *g = true;
+        self.searching.1.notify_one();
     }
 }
 
 pub fn start_main() -> ThreadHandle {
     let stop = Arc::new(AtomicBool::new(true));
-    let stop2 = Arc::clone(&stop);
     let searching = Arc::new((Mutex::new(false), Condvar::new()));
-    let searching2 = Arc::clone(&searching);
+    let tt = Arc::new(Mutex::new(TranspositionTable::new_default()));
     let data = Arc::new(Mutex::new((Position::startpos(), Limits::default())));
-    let data2 = Arc::clone(&data);
+
+    let this = ThreadHandle {
+        stop,
+        searching,
+        tt,
+        data,
+    };
+    let handle = this.clone();
 
     let mut state = SearchState::new();
 
     std::thread::spawn(move || {
-        let (searching, cvar) = &*searching2;
+        let (searching, cvar) = &*this.searching;
 
         loop {
-            {
-                let mut searching = searching.lock().unwrap();
-                *searching = false;
-            }
+            let mut searching = searching.lock().unwrap();
+            *searching = false;
+            cvar.notify_one();
 
-            let _g = cvar.wait_while(searching.lock().unwrap(), |x| !*x).unwrap();
+            searching = cvar.wait_while(searching, |x| !*x).unwrap();
+            drop(searching);
 
-            state.position = data2.lock().unwrap().0.clone();
-            state.limits = data2.lock().unwrap().1.clone();
+            // TODO: Avoid cloning position twice
+            let data = this.data.lock().unwrap();
+            state.position = data.0.clone();
+            state.limits = data.1.clone();
+            drop(data);
 
-            println!("bestmove {}", state.search(stop2.as_ref(), true).unwrap());
+            println!("bestmove {}", state.search(this.stop.as_ref(), &mut *this.tt.lock().unwrap(), true).unwrap());
         }
     });
 
-    ThreadHandle {
-        stop,
-        searching,
-        data,
-    }
+    handle
 }

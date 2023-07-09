@@ -1,16 +1,31 @@
-use std::{fs::File, io::{Write, stdout, stdin}, sync::atomic::AtomicBool, env};
+use std::{
+    env,
+    fs::File,
+    io::{stdin, stdout, Write},
+    sync::atomic::AtomicBool,
+};
 
 use bernt_movegen::{is_in_check, movegen, MoveList, Moves};
-use bernt_position::{piece::PieceColor, MoveFlags, Position};
-use bernt_search::{eval::quiesce, SearchState, CHECKMATE, MAX_DEPTH, MAX_EVAL};
-
-const DEPTH: u8 = 4;
+use bernt_position::{
+    piece::{PieceColor, PieceType},
+    MoveType, Position,
+};
+use bernt_search::{eval::quiesce, tt::TranspositionTable, SearchState, CHECKMATE, MAX_EVAL};
 
 fn main() {
-    let n_pos: usize = env::args().nth(1).map(|x| x.parse().ok()).flatten().unwrap_or(1000);
+    let n_pos: usize = env::args()
+        .nth(1)
+        .map(|x| x.parse().ok())
+        .flatten()
+        .unwrap_or(1000);
     let output = env::args().nth(2).unwrap_or("positions.txt".to_string());
+    let depth: u8 = env::args()
+        .nth(3)
+        .map(|x| x.parse().ok())
+        .flatten()
+        .unwrap_or(4);
 
-    println!("Generating {n_pos} positions and saving them in {output}...");
+    println!("Generating {n_pos} positions and saving them in {output} with depth {depth}...");
 
     let mut i = 0;
 
@@ -41,29 +56,37 @@ fn main() {
             }
         }
 
-        let s = evaluate(&mut state.position, -MAX_EVAL, MAX_EVAL, 0, DEPTH);
+        let s = evaluate(&mut state.position, -MAX_EVAL, MAX_EVAL, 0, depth);
 
-        if s.abs() > 1000 {
+        if s.abs() > 800 {
             continue;
         }
 
         let mut positions = vec![];
 
         state.position.calc_zobrist();
-        state.limits.depth = DEPTH;
+        state.limits.depth = depth;
+
+        let discard_last = 8;
+
+        let mut tt = TranspositionTable::new_default();
 
         let res = loop {
-            if let Some(m) = state.search(&AtomicBool::new(false), false) {
-                if m.flags == MoveFlags::Quiet && i.saturating_sub(10) < n_pos {
+            if let Some(m) = state.search(&AtomicBool::new(false), &mut tt, false) {
+                if m.ty == MoveType::Quiet
+                    && state.position.fullmove_clock() > 8
+                    && !is_in_check(&state.position, state.position.to_move())
+                    && i.saturating_sub(discard_last) < n_pos
+                {
                     positions.push(state.position.as_fen(false));
                     i += 1;
-                    if i > 10 {
-                        println!("\x1b[F{}/{n_pos} positions", i - 10);
+                    if positions.len() > discard_last {
+                        println!("\x1b[F{}/{n_pos} positions", i - discard_last);
                     }
                 }
                 state.position.make_move(m);
                 state.position.calc_zobrist();
-                if state.position.check_draws() || state.position.fullmove_clock() >= 200 {
+                if state.position.check_draws() || state.position.fullmove_clock() >= 150 {
                     break 0.5;
                 }
                 state.position.finalize_moves();
@@ -78,11 +101,11 @@ fn main() {
             }
         };
 
-        i -= positions.len().min(10);
+        i -= positions.len().min(discard_last);
         for (_, pos) in positions
             .iter()
             .enumerate()
-            .filter(|(i, _x)| *i < positions.len().saturating_sub(10))
+            .filter(|(i, _x)| *i < positions.len().saturating_sub(discard_last))
         {
             output.write_fmt(format_args!("{pos}:{res:.1}\n")).unwrap();
         }
@@ -91,7 +114,7 @@ fn main() {
 
 fn evaluate(position: &mut Position, alpha: i32, beta: i32, plies: u8, depth: u8) -> i32 {
     if depth == 0 {
-        return quiesce(position, plies, alpha, beta, MAX_DEPTH);
+        return quiesce(position, plies, alpha, beta);
     }
 
     match movegen(position) {

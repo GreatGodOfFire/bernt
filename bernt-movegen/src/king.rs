@@ -1,4 +1,4 @@
-use bernt_position::{bitboard::BitIter, piece::PieceColor, Move, MoveFlags, Position};
+use bernt_position::{bitboard::BitIter, piece::PieceColor, Move, MoveType, Position};
 
 use crate::{flags, MoveList};
 
@@ -18,13 +18,13 @@ pub fn king_moves<const FLAGS: u8>(
 
     if FLAGS & flags::QUIET != 0 {
         for to in BitIter(moves & free_squares) {
-            movelist.add(Move::new(from, to, MoveFlags::Quiet));
+            movelist.add(Move::new(from, to, MoveType::Quiet));
         }
     }
 
     if FLAGS & flags::CAPTURES != 0 {
         for to in BitIter(moves & enemies) {
-            movelist.add(Move::new(from, to, MoveFlags::Capture));
+            movelist.add(Move::new(from, to, MoveType::Capture));
         }
     }
 }
@@ -50,7 +50,7 @@ pub fn castling_moves(
         movelist.add(Move::new(
             king_square,
             king_square - 2,
-            MoveFlags::LeftCastle,
+            MoveType::LeftCastle,
         ));
     }
 
@@ -61,7 +61,7 @@ pub fn castling_moves(
         movelist.add(Move::new(
             king_square,
             king_square + 2,
-            MoveFlags::RightCastle,
+            MoveType::RightCastle,
         ));
     }
 }

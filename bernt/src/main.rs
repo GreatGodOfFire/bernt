@@ -1,22 +1,22 @@
-use std::{io::stdin, time::Instant};
+use std::{io::stdin, sync::atomic::AtomicBool, time::Instant};
 
 use bernt_movegen::perft::perft;
 use bernt_position::Position;
-use bernt_search::Limits;
+use bernt_search::{Limits, SearchState};
 use thread::start_main;
 
 mod thread;
 
 macro_rules! try_parse {
-    ($var:ident.$field:ident, $ty:ty, $iter:ident; opt) => {
-        if let Some(Ok($field)) = $iter.next().map(|x| x.parse::<$ty>()) {
+    ($var:ident.$field:ident, $iter:ident; opt) => {
+        if let Some(Ok($field)) = $iter.next().map(|x| x.parse()) {
             $var.$field = Some($field);
         } else {
             break;
         }
     };
-    ($var:ident.$field:ident, $ty:ty, $iter:ident) => {
-        if let Some(Ok($field)) = $iter.next().map(|x| x.parse::<$ty>()) {
+    ($var:ident.$field:ident, $iter:ident) => {
+        if let Some(Ok($field)) = $iter.next().map(|x| x.parse()) {
             $var.$field = $field;
         } else {
             break;
@@ -107,22 +107,22 @@ fn main() {
                     while let Some(arg) = args.next() {
                         match arg {
                             "wtime" => {
-                                try_parse!(limits.wtime, u64, args; opt)
+                                try_parse!(limits.wtime, args; opt)
                             }
                             "btime" => {
-                                try_parse!(limits.btime, u64, args; opt)
+                                try_parse!(limits.btime, args; opt)
                             }
                             "winc" => {
-                                try_parse!(limits.winc, u64, args; opt)
+                                try_parse!(limits.winc, args; opt)
                             }
                             "binc" => {
-                                try_parse!(limits.binc, u64, args; opt)
+                                try_parse!(limits.binc, args; opt)
                             }
                             "movestogo" => {
-                                try_parse!(limits.movestogo, u64, args; opt)
+                                try_parse!(limits.movestogo, args; opt)
                             }
                             "depth" => {
-                                try_parse!(limits.depth, u8, args)
+                                try_parse!(limits.depth, args)
                             }
                             _ => break,
                         }

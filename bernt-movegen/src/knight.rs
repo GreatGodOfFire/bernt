@@ -1,4 +1,4 @@
-use bernt_position::{bitboard::BitIter, Move, MoveFlags};
+use bernt_position::{bitboard::BitIter, Move, MoveType};
 
 use crate::{flags, MoveList};
 
@@ -12,13 +12,13 @@ pub fn knight_moves<const FLAGS: u8>(
         let moves = KNIGHT_MOVES[knight as usize] & free_squares;
         if FLAGS & flags::QUIET != 0 {
             for m in BitIter(moves & !enemies) {
-                movelist.add(Move::new(knight, m, MoveFlags::Quiet));
+                movelist.add(Move::new(knight, m, MoveType::Quiet));
             }
         }
 
         if FLAGS & flags::CAPTURES != 0 {
             for m in BitIter(moves & enemies) {
-                movelist.add(Move::new(knight, m, MoveFlags::Capture));
+                movelist.add(Move::new(knight, m, MoveType::Capture));
             }
         }
     }

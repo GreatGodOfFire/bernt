@@ -29,7 +29,7 @@ impl fmt::Display for Params {
                 for rank in 0..8 {
                     write!(f, "    ")?;
                     for file in 0..8 {
-                        write!(f, "{:>4}, ", squares[(7 - rank) * 8 + file])?;
+                        write!(f, "{:>4}, ", squares[rank * 8 + file])?;
                     }
                     writeln!(f)?;
                 }

@@ -1,4 +1,4 @@
-use bernt_position::{bitboard::BitIter, Move, MoveFlags};
+use bernt_position::{bitboard::BitIter, Move, MoveType};
 
 use crate::{flags, MoveList};
 
@@ -17,13 +17,13 @@ pub fn rook_moves<const FLAGS: u8>(
 
         if FLAGS & flags::QUIET != 0 {
             for to in BitIter(moves & !opponent_pieces) {
-                movelist.add(Move::new(rook, to, MoveFlags::Quiet));
+                movelist.add(Move::new(rook, to, MoveType::Quiet));
             }
         }
 
         if FLAGS & flags::CAPTURES != 0 {
             for to in BitIter(moves & opponent_pieces) {
-                movelist.add(Move::new(rook, to, MoveFlags::Capture));
+                movelist.add(Move::new(rook, to, MoveType::Capture));
             }
         }
     }
@@ -51,13 +51,13 @@ pub fn bishop_moves<const FLAGS: u8>(
 
         if FLAGS & flags::QUIET != 0 {
             for to in BitIter(moves & !opponent_pieces) {
-                movelist.add(Move::new(bishop, to, MoveFlags::Quiet));
+                movelist.add(Move::new(bishop, to, MoveType::Quiet));
             }
         }
 
         if FLAGS & flags::CAPTURES != 0 {
             for to in BitIter(moves & opponent_pieces) {
-                movelist.add(Move::new(bishop, to, MoveFlags::Capture));
+                movelist.add(Move::new(bishop, to, MoveType::Capture));
             }
         }
     }

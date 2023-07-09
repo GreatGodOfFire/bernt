@@ -3,10 +3,14 @@ use std::{sync::atomic::AtomicBool, time::Duration};
 use bernt_movegen::{is_in_check, movegen, MoveList, Moves};
 use bernt_position::{piece::PieceType, Move, Position};
 use eval::{evaluate, quiesce};
+use ordering::OrderedMoves;
 use timecontrol::TimeControl;
+use tt::{TTIndex, TTIndexType, TranspositionTable};
 
 pub mod eval;
+mod ordering;
 mod timecontrol;
+pub mod tt;
 
 pub struct SearchState {
     pub position: Position,
@@ -48,7 +52,12 @@ impl SearchState {
         }
     }
 
-    pub fn search(&mut self, stop: &AtomicBool, print: bool) -> Option<Move> {
+    pub fn search(
+        &mut self,
+        stop: &AtomicBool,
+        tt: &mut TranspositionTable,
+        print: bool,
+    ) -> Option<Move> {
         if let Moves::PseudoLegalMoves(movelist) = movegen(&self.position) {
             let tc = TimeControl::new(&self.limits, self.position.to_move(), stop);
             let mut legal_moves = MoveList::new();
@@ -56,7 +65,7 @@ impl SearchState {
             let mut best = (-MAX_EVAL, Move::null(), MoveList::new());
             let mut nodes = 0;
 
-            for m in &movelist {
+            for m in &OrderedMoves::new(movelist, self.position.mailbox()).0 {
                 self.position.make_move(m);
 
                 if !is_in_check(&self.position, !self.position.to_move()) {
@@ -135,6 +144,7 @@ impl SearchState {
                         &tc,
                         &mut nodes,
                         self.limits.depth,
+                        tt,
                     ) {
                         let score = -score;
                         if score > best.0 {
@@ -198,22 +208,35 @@ fn alpha_beta(
     tc: &TimeControl,
     nodes: &mut u64,
     max_depth: u8,
+    tt: &mut TranspositionTable,
 ) -> Option<(i32, MoveList)> {
     if depth == 0 {
-        return Some((
-            quiesce(position, plies + 1, alpha, beta, max_depth),
-            MoveList::new(),
-        ));
+        return Some((quiesce(position, plies + 1, alpha, beta), MoveList::new()));
     }
 
     match movegen(position) {
         Moves::PseudoLegalMoves(moves) => {
             let mut score = alpha;
+            let mut pv_move = Move::null();
 
+            if let Some((m, eval, d, ty)) = tt.lookup(position.zobrist()) {
+                if d >= depth
+                    && (ty == TTIndexType::Exact
+                        || ty == TTIndexType::Lower && eval >= beta
+                        || ty == TTIndexType::Upper && alpha >= eval)
+                {
+                    let mut movelist = MoveList::new();
+                    movelist.add(m);
+                    return Some((eval, movelist));
+                // Get PV from previous iteration
+                } else if d == depth - 1 {
+                    pv_move = m;
+                }
+            }
             let mut pv = MoveList::new();
             let mut legal_moves_count = 0;
             let in_check = is_in_check(position, position.to_move());
-            for m in &moves {
+            for m in &OrderedMoves::new(moves, position.mailbox()).0 {
                 position.make_move(m);
 
                 if position.bitboards()[position.to_move()][PieceType::King] != 0
@@ -253,11 +276,20 @@ fn alpha_beta(
                         tc,
                         nodes,
                         max_depth,
+                        tt,
                     )?;
                     _pv.add(m);
                     let s = -s;
                     if s >= beta {
                         position.unmake_move(m);
+                        tt.insert(TTIndex::new(
+                            position.zobrist(),
+                            s,
+                            m,
+                            depth,
+                            position.fullmove_clock() as u8,
+                            TTIndexType::Lower,
+                        ));
                         return Some((beta, _pv));
                     }
                     if s > score {
@@ -274,6 +306,22 @@ fn alpha_beta(
             } else if legal_moves_count == 0 {
                 Some((0, pv))
             } else {
+                let ty = if score >= beta {
+                    TTIndexType::Lower
+                } else if score <= alpha {
+                    TTIndexType::Upper
+                } else {
+                    TTIndexType::Exact
+                };
+
+                tt.insert(TTIndex::new(
+                    position.zobrist(),
+                    score,
+                    pv[0],
+                    depth,
+                    position.fullmove_clock() as u8,
+                    ty,
+                ));
                 Some((score, pv))
             }
         }
