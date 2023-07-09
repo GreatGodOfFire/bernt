@@ -21,10 +21,10 @@ impl TranspositionTable {
     pub fn insert(&mut self, index: TTIndex) {
         let i = index.hash as usize % self.0.len();
         let old_index = &mut self.0[i];
-        if old_index.depth == 0 {
-            self.1 += 1;
-        }
         if old_index.age < index.age || old_index.depth < index.depth {
+            if old_index.depth == 0 {
+                self.1 += 1;
+            }
             *old_index = index;
         }
     }

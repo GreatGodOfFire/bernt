@@ -5,8 +5,8 @@ pub struct OrderedMoves(pub MoveList);
 
 impl OrderedMoves {
     #[inline]
-    pub fn new(mut moves: MoveList, board: &[Piece; 64]) -> Self {
-        moves.array.sort_by_key(|x| 255 - move_score(*x, board));
+    pub fn new(mut moves: MoveList, board: &[Piece; 64], pv: Move) -> Self {
+        moves.array[..moves.len as usize].sort_by_key(|x| 255 - move_score(*x, board, pv));
 
         Self(moves)
     }
@@ -23,7 +23,11 @@ const MVVLVA_LOOKUP: [[u8; 5]; 6] = [
 /* K */  [ 2,  2,  4,  8,  0],
 ];
 
-fn move_score(m: Move, board: &[Piece; 64]) -> u8 {
+fn move_score(m: Move, board: &[Piece; 64], pv: Move) -> u8 {
+    if m == pv {
+        return 255;
+    }
+
     if m.is_capture() && m.ty != MoveType::EnPassantCapture {
         return 10 + MVVLVA_LOOKUP[board[m.from as usize].ty][board[m.to as usize].ty];
     }

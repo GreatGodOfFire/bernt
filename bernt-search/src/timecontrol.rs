@@ -23,7 +23,7 @@ impl<'a> TimeControl<'a> {
             let inc = inc.unwrap_or(0);
             let extra = if t > inc { t - inc } else { 0 };
 
-            // lets hope 30 ms is enough
+            // lets hope 35 ms is enough
             let safety_margin = 35;
             let max = if t >= safety_margin {
                 t - safety_margin

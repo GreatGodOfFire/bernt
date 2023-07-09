@@ -65,7 +65,7 @@ impl SearchState {
             let mut best = (-MAX_EVAL, Move::null(), MoveList::new());
             let mut nodes = 0;
 
-            for m in &OrderedMoves::new(movelist, self.position.mailbox()).0 {
+            for m in &OrderedMoves::new(movelist, self.position.mailbox(), Move::null()).0 {
                 self.position.make_move(m);
 
                 if !is_in_check(&self.position, !self.position.to_move()) {
@@ -110,12 +110,15 @@ impl SearchState {
 
             let mut depth = 2;
 
-            let mut previous_best;
+            let mut previous_best = tt
+                .lookup(self.position.zobrist())
+                .map(|x| x.0)
+                .unwrap_or(best.1);
 
             while !tc.stop() && depth <= self.limits.depth {
+                legal_moves = OrderedMoves::new(legal_moves, self.position.mailbox(), previous_best).0;
                 nodes = 0;
 
-                previous_best = best.1;
                 best.0 = -MAX_EVAL;
 
                 for m in &legal_moves {
@@ -183,6 +186,7 @@ impl SearchState {
                 }
 
                 depth += 1;
+                previous_best = best.1;
             }
 
             Some(best.1)
@@ -217,7 +221,6 @@ fn alpha_beta(
     match movegen(position) {
         Moves::PseudoLegalMoves(moves) => {
             let mut score = alpha;
-            let mut pv_move = Move::null();
 
             if let Some((m, eval, d, ty)) = tt.lookup(position.zobrist()) {
                 if d >= depth
@@ -228,15 +231,12 @@ fn alpha_beta(
                     let mut movelist = MoveList::new();
                     movelist.add(m);
                     return Some((eval, movelist));
-                // Get PV from previous iteration
-                } else if d == depth - 1 {
-                    pv_move = m;
                 }
             }
             let mut pv = MoveList::new();
             let mut legal_moves_count = 0;
             let in_check = is_in_check(position, position.to_move());
-            for m in &OrderedMoves::new(moves, position.mailbox()).0 {
+            for m in &OrderedMoves::new(moves, position.mailbox(), Move::null()).0 {
                 position.make_move(m);
 
                 if position.bitboards()[position.to_move()][PieceType::King] != 0
