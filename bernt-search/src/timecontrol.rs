@@ -21,17 +21,12 @@ impl<'a> TimeControl<'a> {
         };
         let max = if let Some(t) = t {
             let inc = inc.unwrap_or(0);
-            let extra = if t > inc { t - inc } else { 0 };
+            let extra = t.wrapping_sub(inc);
 
-            // lets hope 35 ms is enough
-            let safety_margin = 35;
-            let max = if t >= safety_margin {
-                t - safety_margin
-            } else {
-                0
-            };
+            // lets hope 20 ms is enough
+            let max = t.wrapping_sub(10); 
 
-            let x = max.min(inc + extra / limits.movestogo.unwrap_or(30));
+            let x = max.min(inc * 3 / 4 + extra / limits.movestogo.unwrap_or(30));
 
             Some(Duration::from_millis(x))
         } else {
