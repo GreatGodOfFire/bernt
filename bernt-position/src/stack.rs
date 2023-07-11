@@ -63,10 +63,6 @@ impl<T: Default + Clone> Stack<T> {
         self.len -= 1;
     }
 
-    pub fn clear(&mut self) {
-        self.len = 0;
-    }
-
     pub fn retain(&mut self, n: u8) {
         if n >= self.len {
             return;
@@ -79,10 +75,21 @@ impl<T: Default + Clone> Stack<T> {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct State {
     pub en_passant: i8,
     pub halfmove_clock: u8,
     pub castling: [[i8; 2]; 2],
     pub captured: Option<PieceType>,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            en_passant: -1,
+            halfmove_clock: 0,
+            castling: [[-1; 2]; 2],
+            captured: None,
+        }
+    }
 }

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bernt-position", "bernt-movegen", "bernt-search", "bernt", "bernt-tuning", "bernt-datagen"]
+members = ["bernt-position", "bernt-movegen", "bernt-test", "bernt-search", "bernt", "bernt-tuning", "bernt-datagen"]
 
 [profile.release]
 panic = 'abort'

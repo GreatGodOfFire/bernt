@@ -50,14 +50,6 @@ impl Params {
         }
     }
 
-    pub const fn zeros() -> Self {
-        Self {
-            // opening: [[0; 64]; 6],
-            midgame: [[0; 64]; 6],
-            endgame: [[0; 64]; 6],
-        }
-    }
-
     pub const fn param_count() -> usize {
         // 64 * 6 * 3
         64 * 6 * 2

@@ -1,13 +1,13 @@
 use std::{
     env,
     fs::File,
-    io::{stdin, stdout, Write},
+    io::Write,
     sync::atomic::AtomicBool,
 };
 
 use bernt_movegen::{is_in_check, movegen, MoveList, Moves};
 use bernt_position::{
-    piece::{PieceColor, PieceType},
+    piece::PieceColor,
     MoveType, Position,
 };
 use bernt_search::{eval::quiesce, tt::TranspositionTable, SearchState, CHECKMATE, MAX_EVAL};
@@ -15,14 +15,12 @@ use bernt_search::{eval::quiesce, tt::TranspositionTable, SearchState, CHECKMATE
 fn main() {
     let n_pos: usize = env::args()
         .nth(1)
-        .map(|x| x.parse().ok())
-        .flatten()
+        .and_then(|x| x.parse().ok())
         .unwrap_or(1000);
     let output = env::args().nth(2).unwrap_or("positions.txt".to_string());
     let depth: u8 = env::args()
         .nth(3)
-        .map(|x| x.parse().ok())
-        .flatten()
+        .and_then(|x| x.parse().ok())
         .unwrap_or(4);
 
     println!("Generating {n_pos} positions and saving them in {output} with depth {depth}...");

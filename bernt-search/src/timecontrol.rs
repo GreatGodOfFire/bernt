@@ -24,7 +24,7 @@ impl<'a> TimeControl<'a> {
             let extra = t.wrapping_sub(inc);
 
             // lets hope 20 ms is enough
-            let max = t.wrapping_sub(10); 
+            let max = t.wrapping_sub(10);
 
             let x = max.min(inc * 3 / 4 + extra / limits.movestogo.unwrap_or(30));
 

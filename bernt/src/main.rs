@@ -1,8 +1,8 @@
-use std::{io::stdin, sync::atomic::AtomicBool, time::Instant};
+use std::{io::stdin, time::Instant};
 
-use bernt_movegen::perft::perft;
+use bernt_movegen::perft::perft_print;
 use bernt_position::Position;
-use bernt_search::{Limits, SearchState};
+use bernt_search::Limits;
 use thread::start_main;
 
 mod thread;
@@ -53,7 +53,7 @@ fn main() {
                             position.calc_zobrist();
 
                             if args.next() == Some("moves") {
-                                while let Some(m) = args.next() {
+                                for m in args.by_ref() {
                                     position.make_move_uci(m);
                                     position.calc_zobrist();
                                     position.finalize_moves();
@@ -68,7 +68,7 @@ fn main() {
 
                             while let Some(arg) = args.next() {
                                 if arg == "moves" {
-                                    while let Some(m) = args.next() {
+                                    for m in args.by_ref() {
                                         moves.push(m);
                                     }
                                 } else {
@@ -92,9 +92,9 @@ fn main() {
                     }
                 }
                 "perft" => {
-                    if let Some(depth) = args.next().map(|x| x.parse().ok()).flatten() {
+                    if let Some(depth) = args.next().and_then(|x| x.parse().ok()) {
                         let now = Instant::now();
-                        let x = perft(&mut position, depth);
+                        let x = perft_print(&mut position, depth);
                         let elapsed = now.elapsed();
                         println!("Nodes: {x}");
                         println!("Elapsed: {elapsed:?}");

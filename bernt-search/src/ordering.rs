@@ -32,5 +32,5 @@ fn move_score(m: Move, board: &[Piece; 64], pv: Move) -> u8 {
         return 10 + MVVLVA_LOOKUP[board[m.from as usize].ty][board[m.to as usize].ty];
     }
 
-    return 1;
+    1
 }

@@ -1,0 +1,12 @@
+[package]
+name = "bernt-test"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bernt-position = { path = "../bernt-position" }
+bernt-movegen = { path = "../bernt-movegen" }
+bpaf = { version = "0.9", features = ["color"] }
+owo-colors = "3"

@@ -68,7 +68,12 @@ pub fn start_main() -> ThreadHandle {
             state.limits = data.1.clone();
             drop(data);
 
-            println!("bestmove {}", state.search(this.stop.as_ref(), &mut *this.tt.lock().unwrap(), true).unwrap());
+            println!(
+                "bestmove {}",
+                state
+                    .search(this.stop.as_ref(), &mut this.tt.lock().unwrap(), true)
+                    .unwrap()
+            );
         }
     });
 

@@ -2,7 +2,7 @@
 fn main() {
     use std::time::Instant;
 
-    use bernt_movegen::perft::perft;
+    use bernt_movegen::perft::perft_print;
     use bernt_position::{Position, Variant};
 
     let env: Vec<_> = std::env::args().collect();
@@ -23,7 +23,7 @@ fn main() {
     position.set_variant(variant);
 
     let instant = Instant::now();
-    let n = perft(&mut position, depth);
+    let n = perft_print(&mut position, depth);
     let elapsed = instant.elapsed();
 
     println!("Nodes: {n}");
@@ -36,7 +36,7 @@ fn main() {
 
 #[cfg(feature = "perftree")]
 fn main() {
-    use bernt_movegen::perft::perft;
+    use bernt_movegen::perft::perft_print;
     use bernt_position::Position;
 
     let env: Vec<_> = std::env::args().collect();

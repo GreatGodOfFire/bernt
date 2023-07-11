@@ -39,13 +39,18 @@ impl Position {
     pub fn new_empty() -> Self {
         let bitboards = [[0; 7]; 2];
 
+        let mut stack = Stack::new();
+        stack.push(State::default());
+        let mut repetition_table = Stack::new();
+        repetition_table.push(0);
+
         Self {
             bitboards,
             mailbox: [Piece::default(); 64],
             to_move: PieceColor::White,
             fullmove_clock: 1,
-            stack: Stack::new(),
-            repetition_table: Stack::new(),
+            stack,
+            repetition_table,
             variant: Variant::Standard,
         }
     }
@@ -408,27 +413,6 @@ pub enum MoveType {
     QueenPromotionCapture,
 }
 
-impl MoveType {
-    fn new_promotion(ty: PieceType) -> Self {
-        match ty {
-            Knight => Self::KnightPromotion,
-            Bishop => Self::BishopPromotion,
-            Rook => Self::RookPromotion,
-            Queen => Self::QueenPromotion,
-            _ => panic!(),
-        }
-    }
-    fn new_promotion_capture(ty: PieceType) -> Self {
-        match ty {
-            Knight => Self::KnightPromotionCapture,
-            Bishop => Self::BishopPromotionCapture,
-            Rook => Self::RookPromotionCapture,
-            Queen => Self::QueenPromotionCapture,
-            _ => panic!(),
-        }
-    }
-}
-
 impl From<MoveType> for u8 {
     fn from(code: MoveType) -> Self {
         code as u8
@@ -449,6 +433,11 @@ impl Position {
     #[inline]
     pub fn mailbox(&self) -> &[Piece; 64] {
         &self.mailbox
+    }
+
+    #[inline]
+    pub fn mailbox_mut(&mut self) -> &mut [Piece; 64] {
+        &mut self.mailbox
     }
 
     #[inline]

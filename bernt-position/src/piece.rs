@@ -7,6 +7,53 @@ pub struct Piece {
 }
 
 impl Piece {
+    pub fn new(ty: PieceType, color: PieceColor) -> Self {
+        Self { ty, color }
+    }
+
+    pub fn white() -> Self {
+        Self {
+            ty: PieceType::Empty,
+            color: PieceColor::White,
+        }
+    }
+    pub fn black() -> Self {
+        Self {
+            ty: PieceType::Empty,
+            color: PieceColor::Black,
+        }
+    }
+    pub fn pawn(mut self) -> Self {
+        self.ty = PieceType::Pawn;
+
+        self
+    }
+    pub fn knight(mut self) -> Self {
+        self.ty = PieceType::Knight;
+
+        self
+    }
+    pub fn bishop(mut self) -> Self {
+        self.ty = PieceType::Bishop;
+
+        self
+    }
+    pub fn rook(mut self) -> Self {
+        self.ty = PieceType::Rook;
+
+        self
+    }
+    pub fn queen(mut self) -> Self {
+        self.ty = PieceType::Queen;
+
+        self
+    }
+    pub fn king(mut self) -> Self {
+        self.ty = PieceType::King;
+
+        self
+    }
+
     pub const EMPTY: Self = Self {
         ty: PieceType::Empty,
         color: PieceColor::White,

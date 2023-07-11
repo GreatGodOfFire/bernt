@@ -1,7 +1,6 @@
 use std::{
     env,
     fs::{self, read_to_string},
-    io::{stdout, Write},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -57,23 +56,20 @@ fn main() {
                 let mut lines = positions.lines();
                 lines.next().unwrap();
 
-                let mut positions: Vec<_> = lines
+                let positions: Vec<_> = lines
                     .map(|x| {
                         let (fen, result) = x.split_once(':').unwrap();
                         let result = result.parse().unwrap();
-                        let pos = TuningPosition::new(Position::from_fen(fen).unwrap(), result);
-
-                        pos
+                        TuningPosition::new(Position::from_fen(fen).unwrap(), result)
                     })
                     .collect();
 
                 let n_epochs = env::args()
                     .nth(2)
-                    .map(|x| x.parse().ok())
-                    .flatten()
+                    .and_then(|x| x.parse().ok())
                     .unwrap_or(u64::MAX);
 
-                println!("{}", tune(&mut positions, Params::default(), n_epochs));
+                println!("{}", tune(&positions, Params::default(), n_epochs));
             }
             Ok(m) if m.is_dir() => {
                 eprintln!("Expected a file")
@@ -81,7 +77,7 @@ fn main() {
             _ => eprintln!("Invalid path: {path}"),
         }
     } else {
-        eprintln!("USAGE: {} <PATH>", env::args().nth(0).unwrap());
+        eprintln!("USAGE: {} <PATH>", env::args().next().unwrap());
     }
 }
 
@@ -134,7 +130,6 @@ fn tune(positions: &[TuningPosition], initial: Params, n_epochs: u64) -> Params 
 }
 
 fn initial_error(positions: &[TuningPosition], params: &Params) -> (f64, f64) {
-    let k;
     const GR: f64 = 1.61803399f64;
 
     let mut a = 0.0;
@@ -155,7 +150,7 @@ fn initial_error(positions: &[TuningPosition], params: &Params) -> (f64, f64) {
         k2 = a + (b - a) / GR;
     }
 
-    k = (b + a) / 2.0;
+    let k = (b + a) / 2.0;
     println!("K:     {k:.7}");
     (k, error(positions, params, k))
 }
@@ -165,7 +160,7 @@ fn error(positions: &[TuningPosition], params: &Params, k: f64) -> f64 {
     let mut n = 0;
 
     for pos in positions.iter() {
-        sum += single_error(pos, &params, k);
+        sum += single_error(pos, params, k);
         n += 1;
     }
 

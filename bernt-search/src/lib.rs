@@ -116,9 +116,8 @@ impl SearchState {
                 .unwrap_or(best.1);
 
             while !tc.stop() && depth <= self.limits.depth {
-                legal_moves = OrderedMoves::new(legal_moves, self.position.mailbox(), previous_best).0;
-                nodes = 0;
-
+                legal_moves =
+                    OrderedMoves::new(legal_moves, self.position.mailbox(), previous_best).0;
                 best.0 = -MAX_EVAL;
 
                 for m in &legal_moves {
@@ -146,7 +145,6 @@ impl SearchState {
                         depth - 1,
                         &tc,
                         &mut nodes,
-                        self.limits.depth,
                         tt,
                     ) {
                         let score = -score;
@@ -211,7 +209,6 @@ fn alpha_beta(
     depth: u8,
     tc: &TimeControl,
     nodes: &mut u64,
-    max_depth: u8,
     tt: &mut TranspositionTable,
 ) -> Option<(i32, MoveList)> {
     if depth == 0 {
@@ -275,7 +272,6 @@ fn alpha_beta(
                         depth - 1,
                         tc,
                         nodes,
-                        max_depth,
                         tt,
                     )?;
                     _pv.add(m);

@@ -21,7 +21,7 @@ pub fn quiesce(position: &mut Position, plies: u8, alpha: i32, beta: i32) -> i32
         alpha = eval;
     }
 
-    if plies >= MAX_DEPTH {
+    if plies == MAX_DEPTH {
         return alpha;
     }
 
