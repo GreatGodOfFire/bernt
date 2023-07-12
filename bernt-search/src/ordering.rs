@@ -6,7 +6,7 @@ pub struct OrderedMoves(pub MoveList);
 impl OrderedMoves {
     #[inline]
     pub fn new(mut moves: MoveList, board: &[Piece; 64], pv: Move) -> Self {
-        moves.array[..moves.len as usize].sort_by_key(|x| 255 - move_score(*x, board, pv));
+        moves.array[..moves.len as usize].sort_unstable_by_key(|x| 255 - move_score(*x, board, pv));
 
         Self(moves)
     }
