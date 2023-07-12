@@ -219,21 +219,25 @@ fn alpha_beta(
         Moves::PseudoLegalMoves(moves) => {
             let mut score = alpha;
 
+            let mut pv = MoveList::new();
+            let mut tt_move = Move::null();
+
             if let Some((m, eval, d, ty)) = tt.lookup(position.zobrist()) {
+                // TODO: check if legal
                 if d >= depth
                     && (ty == TTIndexType::Exact
                         || ty == TTIndexType::Lower && eval >= beta
                         || ty == TTIndexType::Upper && alpha >= eval)
                 {
-                    let mut movelist = MoveList::new();
-                    movelist.add(m);
-                    return Some((eval, movelist));
+                    pv.add(m);
+                    return Some((eval, pv));
+                } else if d >= depth - 1 && ty == TTIndexType::Exact {
+                    tt_move = m;
                 }
             }
-            let mut pv = MoveList::new();
             let mut legal_moves_count = 0;
             let in_check = is_in_check(position, position.to_move());
-            for m in &OrderedMoves::new(moves, position.mailbox(), Move::null()).0 {
+            for m in &OrderedMoves::new(moves, position.mailbox(), tt_move).0 {
                 position.make_move(m);
 
                 if position.bitboards()[position.to_move()][PieceType::King] != 0
