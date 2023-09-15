@@ -12,8 +12,8 @@ pub struct Position {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Piece {
-    color: PieceColor,
-    ty: PieceType,
+    pub color: PieceColor,
+    pub ty: PieceType,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -152,6 +152,35 @@ impl Position {
         pos.side = !pos.side;
 
         pos
+    }
+
+    pub fn piece_at(&self, sq: u8) -> Piece {
+        use PieceType::*;
+
+        let bit = 1 << sq;
+
+        let mut piece = Piece {
+            color: PieceColor::White,
+            ty: None,
+        };
+        if self.colors[PieceColor::White] & bit != 0 {
+            for ty in [Pawn, Knight, Bishop, Rook, Queen, King] {
+                if self.pieces[ty] & bit != 0 {
+                    piece.ty = ty;
+                    break;
+                }
+            }
+        } else if self.colors[PieceColor::Black] & bit != 0 {
+            piece.color = PieceColor::Black;
+            for ty in [Pawn, Knight, Bishop, Rook, Queen, King] {
+                if self.pieces[ty] & bit != 0 {
+                    piece.ty = ty;
+                    break;
+                }
+            }
+        }
+
+        piece
     }
 
     pub fn from_fen(s: &str) -> Self {

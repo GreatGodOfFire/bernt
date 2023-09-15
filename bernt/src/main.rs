@@ -3,6 +3,7 @@ mod movegen;
 mod perft;
 mod position;
 mod search;
+mod zobrist;
 
 use std::{io::stdin, time::Instant};
 
@@ -15,6 +16,7 @@ fn main() {
     let mut line = String::new();
 
     let mut pos = Position::startpos();
+    let mut repetitions = vec![];
 
     loop {
         line.clear();
@@ -52,8 +54,21 @@ fn main() {
             "position" => {
                 let fen = args[1];
 
+                repetitions = vec![];
+
                 if fen == "startpos" {
                     pos = Position::startpos();
+                    for m in &args[2..] {
+                        let moves = movegen(&pos);
+
+                        for n in &moves {
+                            if n.to_string().as_str() == *m {
+                                pos.make_move(*n);
+                                repetitions.push(pos.hash());
+                                break;
+                            }
+                        }
+                    }
                 } else {
                     let moves_start = args
                         .iter()
@@ -63,16 +78,23 @@ fn main() {
                     let fen = args[2..moves_start].join(" ");
                     pos = Position::from_fen(&fen);
 
+                    repetitions.push(pos.hash());
+
                     if moves_start < args.len() {
                         for m in &args[moves_start + 1..] {
                             let moves = movegen(&pos);
 
                             for n in &moves {
                                 if n.to_string().as_str() == *m {
-                                    pos.make_move(*n);
+                                    pos = pos.make_move(*n);
+                                    repetitions.push(pos.hash());
                                     break;
                                 }
                             }
+
+                            repetitions = repetitions
+                                [repetitions.len().saturating_sub(pos.halfmove as usize + 1)..]
+                                .to_vec();
                         }
                     }
                 }
@@ -91,7 +113,7 @@ fn main() {
                     }
                 }
 
-                println!("bestmove {}", search(&pos, options));
+                println!("bestmove {}", search(&pos, options, repetitions.clone()));
             }
             _ => {}
         }
