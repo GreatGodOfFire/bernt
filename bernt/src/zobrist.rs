@@ -18,8 +18,8 @@ impl Position {
         }
 
         for (x, y) in self.castling.iter().zip(CASTLING.iter()) {
-            hash ^= (x[0] as u64).wrapping_mul(y[0]);
-            hash ^= (x[1] as u64).wrapping_mul(y[1]);
+            hash ^= ((x[0] != -1) as u64).wrapping_mul(y[0]);
+            hash ^= ((x[1] != -1) as u64).wrapping_mul(y[1]);
         }
 
         if self.en_passant != -1 {
@@ -92,4 +92,3 @@ impl XorShiftState {
         (self.0 as u64 ^ (self.0 >> 64) as u64, self)
     }
 }
-impl Position {}

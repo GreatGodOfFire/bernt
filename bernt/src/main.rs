@@ -16,7 +16,7 @@ fn main() {
     let mut line = String::new();
 
     let mut pos = Position::startpos();
-    let mut repetitions = vec![];
+    let mut repetitions = vec![pos.hash()];
 
     loop {
         line.clear();
@@ -58,6 +58,9 @@ fn main() {
 
                 if fen == "startpos" {
                     pos = Position::startpos();
+
+                    repetitions.push(pos.hash());
+
                     for m in &args[2..] {
                         let moves = movegen(&pos);
 

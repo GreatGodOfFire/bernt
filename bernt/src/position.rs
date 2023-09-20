@@ -49,7 +49,7 @@ impl Position {
                 0x4200000000000042,
                 0x2400000000000024,
                 0x8100000000000081,
-                0x800000000000008,
+                0x0800000000000008,
                 0x1000000000000010,
             ],
             colors: [0xffff, 0xffff000000000000],
@@ -82,7 +82,7 @@ impl Position {
         let en_passant = pos.en_passant;
 
         if m.flags == MoveFlag::DOUBLE_PAWN {
-            pos.en_passant = match self.side {
+            pos.en_passant = match pos.side {
                 PieceColor::White => m.to as i8 - 8,
                 PieceColor::Black => m.to as i8 + 8,
             }
