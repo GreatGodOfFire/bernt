@@ -6,7 +6,7 @@ use std::time::Instant;
 use crate::{
     movegen::movegen,
     position::{Move, Position, PieceType, MoveFlag, PieceColor},
-    SearchOptions, zobrist,
+    SearchOptions, zobrist, search::eval::{PSTS, flip},
 };
 
 use self::{eval::eval, timeman::TimeManager};
@@ -15,6 +15,11 @@ struct SearchContext {
     timeman: TimeManager,
     nodes: u64,
     repetitions: Vec<u64>,
+}
+
+struct SearchPosition {
+    pos: Position,
+    eval: i32,
 }
 
 pub fn search(pos: &Position, options: SearchOptions, repetitions: Vec<u64>) -> Move {
@@ -28,8 +33,13 @@ pub fn search(pos: &Position, options: SearchOptions, repetitions: Vec<u64>) -> 
 
     let mut best = Move::NULL;
 
+    let pos = SearchPosition {
+        pos: pos.clone(),
+        eval: eval(&pos),
+    };
+
     for depth in 1..=10 {
-        if let Some((m, eval)) = context.negamax(pos, -INF, INF, 0, depth) {
+        if let Some((m, eval)) = context.negamax(&pos, -INF, INF, 0, depth) {
             let elapsed = instant.elapsed();
 
             let nodes = context.nodes;
@@ -80,22 +90,25 @@ impl SearchContext {
 
     fn update(
         &mut self,
-        pos: &Position,
+        pos: &SearchPosition,
         m: Move,
-    ) {
+    ) -> SearchPosition {
         use PieceType::*;
+
+        let mut eval = pos.eval;
 
         let to_bit = 1 << m.to;
 
         let mut piece = m.piece;
-        let side = pos.side;
+        let side = pos.pos.side;
 
         let mut hash = *self.repetitions.last().unwrap();
 
         hash ^= zobrist::PIECES[m.from as usize][side][piece];
+        eval -= PSTS[piece][flip(m.from, side) as usize];
 
-        if pos.en_passant > 0 {
-            hash ^= zobrist::EN_PASSANT[pos.en_passant as usize % 8];
+        if pos.pos.en_passant > 0 {
+            hash ^= zobrist::EN_PASSANT[pos.pos.en_passant as usize % 8];
         }
 
         if m.flags == MoveFlag::DOUBLE_PAWN {
@@ -103,52 +116,58 @@ impl SearchContext {
         }
 
         if piece == PieceType::King {
-            if pos.castling[side][0] >= 0 {
+            if pos.pos.castling[side][0] >= 0 {
                 hash ^= zobrist::CASTLING[side][0];
             }
-            if pos.castling[side][1] >= 0 {
+            if pos.pos.castling[side][1] >= 0 {
                 hash ^= zobrist::CASTLING[side][1];
             }
-        } else if m.from == pos.castling[side][0] as u8 {
+        } else if m.from == pos.pos.castling[side][0] as u8 {
             hash ^= zobrist::CASTLING[side][0];
-        } else if m.from == pos.castling[side][1] as u8 {
+        } else if m.from == pos.pos.castling[side][1] as u8 {
             hash ^= zobrist::CASTLING[side][1];
         }
 
         match m.flags {
             MoveFlag::CASTLE_LEFT => {
-                hash ^= zobrist::PIECES[m.to as usize + 1][side][Rook];
                 hash ^= zobrist::PIECES[m.to as usize - 2][side][Rook];
+                hash ^= zobrist::PIECES[m.to as usize + 1][side][Rook];
+                eval -= PSTS[Rook][flip(m.to - 2, side) as usize];
+                eval += PSTS[Rook][flip(m.to + 1, side) as usize];
             }
             MoveFlag::CASTLE_RIGHT => {
                 hash ^= zobrist::PIECES[m.to as usize + 1][side][Rook];
                 hash ^= zobrist::PIECES[m.to as usize - 1][side][Rook];
+                eval -= PSTS[Rook][flip(m.to + 1, side) as usize];
+                eval += PSTS[Rook][flip(m.to - 1, side) as usize];
             }
             MoveFlag::EP => {
-                let sq = (pos.en_passant
+                let sq = (pos.pos.en_passant
                     + match side {
                         PieceColor::White => -8,
                         PieceColor::Black => 8,
                     }) as u8;
 
                 hash ^= zobrist::PIECES[sq as usize][!side][Pawn];
+                eval += PSTS[Pawn][flip(sq, side) as usize];
             }
             _ => {
                 if m.flags & MoveFlag::CAP != 0 {
                     let mut target = Pawn;
                     for ty in [Knight, Bishop, Rook, Queen] {
-                        if pos.pieces[ty] & to_bit != 0 {
+                        if pos.pos.pieces[ty] & to_bit != 0 {
                             target = ty;
                             break;
                         }
                     }
 
                     hash ^= zobrist::PIECES[m.to as usize][!side][target];
+                    eval += PSTS[target][flip(m.to, !side) as usize];
 
                     if target == Rook {
-                        if m.to == pos.castling[!side][0] as u8 {
+                        if m.to == pos.pos.castling[!side][0] as u8 {
                             hash ^= zobrist::CASTLING[!side][0];
-                        } else if m.to == pos.castling[!side][1] as u8 {
+                        } else if m.to == pos.pos.castling[!side][1] as u8 {
                             hash ^= zobrist::CASTLING[!side][1];
                         }
                     }
@@ -161,33 +180,35 @@ impl SearchContext {
         }
 
         hash ^= zobrist::PIECES[m.to as usize][side][piece];
+        eval += PSTS[piece][flip(m.to, side) as usize];
         hash ^= zobrist::BLACK;
 
         self.repetitions.push(hash);
+
+        return SearchPosition { pos: pos.pos.make_move(m), eval: -eval }
     }
 
     fn negamax(
         &mut self,
-        pos: &Position,
+        pos: &SearchPosition,
         alpha: i32,
         beta: i32,
         plies: u8,
         depth: u8,
     ) -> Option<(Move, i32)> {
         if depth == 0 {
-            return Some((Move::NULL, eval(pos)));
+            return Some((Move::NULL, pos.eval));
         }
 
-        let in_check = pos.in_check(pos.side);
+        let in_check = pos.pos.in_check(pos.pos.side);
         let mut n_moves = 0;
 
         let mut best = (Move::NULL, -INF);
 
-        for m in &movegen(pos) {
-            self.update(pos, *m);
-            let pos = pos.make_move(*m);
+        for m in &movegen(&pos.pos) {
+            let pos = self.update(pos, *m);
 
-            if !pos.in_check(!pos.side) {
+            if !pos.pos.in_check(!pos.pos.side) {
                 n_moves += 1;
 
                 self.nodes += 1;
@@ -195,7 +216,7 @@ impl SearchContext {
                     return None;
                 }
 
-                let res = if self.is_draw(&pos) {
+                let res = if self.is_draw(&pos.pos) {
                     (Move::NULL, 0)
                 } else {
                     self.negamax(&pos, -beta, -alpha, plies + 1, depth - 1)?
