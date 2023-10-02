@@ -1,5 +1,6 @@
 mod eval;
 mod timeman;
+mod ordering;
 pub mod tt;
 
 use std::time::Instant;
@@ -225,7 +226,7 @@ impl SearchContext<'_> {
             return Some((tt_move, tt_eval));
         }
 
-        for m in &movegen(&pos.pos) {
+        for m in &self.order_moves(movegen(&pos.pos), tt_move) {
             let pos = self.update(pos, *m);
 
             if !pos.pos.in_check(!pos.pos.side) {

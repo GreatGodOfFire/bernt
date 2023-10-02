@@ -17,8 +17,8 @@ use crate::{
 use self::sliding::single_rook_moves;
 
 pub struct MoveList {
-    moves: [Move; 256],
-    len: u8,
+    pub moves: [Move; 256],
+    pub len: u8,
 }
 
 impl MoveList {
