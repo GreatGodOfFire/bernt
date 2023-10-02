@@ -1,20 +1,27 @@
 mod eval;
 mod timeman;
+pub mod tt;
 
 use std::time::Instant;
 
 use crate::{
     movegen::movegen,
-    position::{Move, Position, PieceType, MoveFlag, PieceColor},
-    SearchOptions, zobrist, search::eval::{PSTS, flip},
+    position::{Move, MoveFlag, PieceColor, PieceType, Position},
+    search::eval::{flip, PSTS},
+    zobrist, SearchOptions,
 };
 
-use self::{eval::eval, timeman::TimeManager};
+use self::{
+    eval::eval,
+    timeman::TimeManager,
+    tt::{TTEntryType, TT, TTEntry},
+};
 
-struct SearchContext {
+struct SearchContext<'a> {
     timeman: TimeManager,
     nodes: u64,
     repetitions: Vec<u64>,
+    tt: &'a mut TT,
 }
 
 struct SearchPosition {
@@ -22,13 +29,14 @@ struct SearchPosition {
     eval: i32,
 }
 
-pub fn search(pos: &Position, options: SearchOptions, repetitions: Vec<u64>) -> Move {
+pub fn search(pos: &Position, options: SearchOptions, repetitions: Vec<u64>, tt: &mut TT) -> Move {
     let instant = Instant::now();
 
     let mut context = SearchContext {
         timeman: TimeManager::new(&options, pos.side),
         nodes: 0,
         repetitions,
+        tt,
     };
 
     let mut best = Move::NULL;
@@ -62,7 +70,7 @@ pub fn search(pos: &Position, options: SearchOptions, repetitions: Vec<u64>) -> 
 const INF: i32 = 1000000;
 const CHECKMATE: i32 = 100000;
 
-impl SearchContext {
+impl SearchContext<'_> {
     fn is_draw(&self, pos: &Position) -> bool {
         if pos.halfmove >= 100 {
             return true;
@@ -88,11 +96,7 @@ impl SearchContext {
         false
     }
 
-    fn update(
-        &mut self,
-        pos: &SearchPosition,
-        m: Move,
-    ) -> SearchPosition {
+    fn update(&mut self, pos: &SearchPosition, m: Move) -> SearchPosition {
         use PieceType::*;
 
         let mut eval = pos.eval;
@@ -185,7 +189,14 @@ impl SearchContext {
 
         self.repetitions.push(hash);
 
-        return SearchPosition { pos: pos.pos.make_move(m), eval: -eval }
+        return SearchPosition {
+            pos: pos.pos.make_move(m),
+            eval: -eval,
+        };
+    }
+
+    fn hash(&self) -> u64 {
+        *self.repetitions.last().unwrap()
     }
 
     fn negamax(
@@ -204,11 +215,21 @@ impl SearchContext {
         let mut n_moves = 0;
 
         let mut best = (Move::NULL, -INF);
+        let (tt_move, tt_eval, tt_depth, tt_ty) = self.tt.lookup(self.hash()).unwrap_or_default();
+
+        if tt_depth >= depth
+            && (tt_ty == TTEntryType::Exact
+                || (tt_ty == TTEntryType::Lower && tt_eval >= beta)
+                || (tt_ty == TTEntryType::Upper && alpha >= tt_eval))
+        {
+            return Some((tt_move, tt_eval));
+        }
 
         for m in &movegen(&pos.pos) {
             let pos = self.update(pos, *m);
 
             if !pos.pos.in_check(!pos.pos.side) {
+
                 n_moves += 1;
 
                 self.nodes += 1;
@@ -240,6 +261,16 @@ impl SearchContext {
                 return Some((Move::NULL, 0));
             }
         }
+
+        let ty = if best.1 >= beta {
+            TTEntryType::Lower
+        } else if best.1 <= alpha {
+            TTEntryType::Upper
+        } else {
+            TTEntryType::Exact
+        };
+
+        self.tt.insert(TTEntry::new(self.hash(), best.1, best.0, depth, 0, ty));
 
         Some(best)
     }

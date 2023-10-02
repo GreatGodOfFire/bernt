@@ -299,6 +299,12 @@ impl Move {
     }
 }
 
+impl Default for Move {
+    fn default() -> Self {
+        Move::NULL
+    }
+}
+
 impl fmt::Display for Move {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         const PROMOS: [&str; 7] = ["", "n", "b", "r", "q", "", ""];

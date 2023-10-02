@@ -8,7 +8,7 @@ mod zobrist;
 use std::{io::stdin, time::Instant};
 
 use position::Position;
-use search::search;
+use search::{search, tt::TT};
 
 use crate::{movegen::movegen, perft::split_perft};
 
@@ -17,6 +17,7 @@ fn main() {
 
     let mut pos = Position::startpos();
     let mut repetitions = vec![pos.hash()];
+    let mut tt = TT::new_default();
 
     loop {
         line.clear();
@@ -38,6 +39,7 @@ fn main() {
             }
             "ucinewgame" => {
                 pos = Position::startpos();
+                tt = TT::new_default();
             }
             "perft" => {
                 let depth = args[1].parse().unwrap();
@@ -66,7 +68,7 @@ fn main() {
 
                         for n in &moves {
                             if n.to_string().as_str() == *m {
-                                pos.make_move(*n);
+                                pos = pos.make_move(*n);
                                 repetitions.push(pos.hash());
                                 break;
                             }
@@ -116,7 +118,10 @@ fn main() {
                     }
                 }
 
-                println!("bestmove {}", search(&pos, options, repetitions.clone()));
+                println!(
+                    "bestmove {}",
+                    search(&pos, options, repetitions.clone(), &mut tt)
+                );
             }
             _ => {}
         }
