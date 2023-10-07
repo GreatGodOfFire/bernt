@@ -232,7 +232,7 @@ impl SearchContext<'_> {
         let in_check = pos.pos.in_check(pos.pos.side);
         let mut n_moves = 0;
 
-        let mut best = (Move::NULL, -INF);
+        let mut best = (Move::NULL, alpha);
         let (tt_move, tt_eval, tt_depth, tt_ty) = self.tt.lookup(self.hash()).unwrap_or_default();
 
         if tt_depth >= depth
@@ -240,8 +240,11 @@ impl SearchContext<'_> {
                 || (tt_ty == TTEntryType::Lower && tt_eval >= beta)
                 || (tt_ty == TTEntryType::Upper && alpha >= tt_eval))
         {
+            // TODO: check with is_pseudolegal
             return Some((tt_move, tt_eval));
         }
+
+        let mut search_pv = true;
 
         for m in &self.order_moves(movegen(&pos.pos), tt_move) {
             let pos = self.update(pos, *m);
@@ -257,11 +260,22 @@ impl SearchContext<'_> {
                 let res = if self.is_draw(&pos.pos) {
                     (Move::NULL, 0)
                 } else {
-                    self.negamax(&pos, -beta, -alpha, plies + 1, depth - 1)?
+                    if search_pv {
+                        self.negamax(&pos, -beta, -alpha, plies + 1, depth - 1)?
+                    } else {
+                        let mut res =
+                            self.negamax(&pos, -best.1 - 1, -best.1, plies + 1, depth - 1)?;
+                        if -res.1 > best.1 {
+                            res = self.negamax(&pos, -beta, -alpha, plies + 1, depth - 1)?;
+                        }
+
+                        res
+                    }
                 };
 
                 if -res.1 > best.1 {
                     best = (*m, -res.1);
+                    search_pv = false;
                     if res.1 >= beta {
                         self.repetitions.pop();
                         return Some((*m, -res.1));
