@@ -1,4 +1,4 @@
-EXE = Bernt
+EXE = bernt
 
 ifeq ($(OS),Windows_NT)
 	NAME := $(EXE).exe
