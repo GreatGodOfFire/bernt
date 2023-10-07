@@ -1,3 +1,4 @@
+mod bench;
 mod bitboard;
 mod movegen;
 mod perft;
@@ -5,14 +6,21 @@ mod position;
 mod search;
 mod zobrist;
 
-use std::{io::stdin, time::Instant};
+use std::{env, io::stdin, time::Instant};
 
 use position::Position;
 use search::{search, tt::TT};
 
-use crate::{movegen::movegen, perft::split_perft};
+use crate::{bench::bench, movegen::movegen, perft::split_perft};
 
 fn main() {
+    let args: Vec<_> = env::args().collect();
+
+    if args.len() == 2 && args[1] == "bench" {
+        bench();
+        return;
+    }
+
     let mut line = String::new();
 
     let mut pos = Position::startpos();
@@ -35,7 +43,18 @@ fn main() {
             "uci" => {
                 println!("id name bernt");
                 println!("id author GreatGodOfFire");
+                println!("option name Hash type spin default 16 min 1 max 262144");
+                // For OpenBench
+                println!("option name Threads type spin default 1 min 1 max 1");
                 println!("uciok");
+            }
+            "setoption" => {
+                if let Some(option) = parse_setoption(&args[1..]) {
+                    match option {
+                        UciOption::Hash(mb) => tt.set_size(mb),
+                        UciOption::Threads(_) => {}
+                    }
+                }
             }
             "ucinewgame" => {
                 pos = Position::startpos();
@@ -114,13 +133,14 @@ fn main() {
                         "btime" => options.btime = iter.next().unwrap().parse().unwrap(),
                         "winc" => options.winc = iter.next().unwrap().parse().unwrap(),
                         "binc" => options.binc = iter.next().unwrap().parse().unwrap(),
+                        "depth" => options.depth = iter.next().unwrap().parse().unwrap(),
                         _ => {}
                     }
                 }
 
                 println!(
                     "bestmove {}",
-                    search(&pos, options, repetitions.clone(), &mut tt)
+                    search(&pos, options, repetitions.clone(), &mut tt).best
                 );
             }
             _ => {}
@@ -128,11 +148,71 @@ fn main() {
     }
 }
 
+enum UciOption {
+    Hash(usize),
+    Threads(u8),
+}
+
+fn parse_setoption(args: &[&str]) -> Option<UciOption> {
+    use UciOption::*;
+
+    if args.len() == 0 || args[0] != "name" {
+        eprintln!("no \"name\" after \"setoption\"");
+        return None;
+    }
+
+    if args.len() == 1 {
+        eprintln!("no option name given");
+        return None;
+    }
+
+    let mut option;
+
+    match args[1] {
+        "Hash" => {
+            option = Hash(0);
+        }
+        "Threads" => {
+            option = Threads(0);
+        }
+        o => {
+            eprintln!("unknown uci option {o}");
+            return None;
+        }
+    }
+
+    if args.len() == 2 || args[2] != "value" {
+        eprintln!("no \"value\" after name");
+        return None;
+    }
+
+    if args.len() == 3 {
+        eprintln!("no value given");
+        return None;
+    }
+
+    if matches!(option, Hash(_) | Threads(_)) {
+        if let Ok(value) = args[3].parse() {
+            option = match option {
+                Hash(_) => Hash(value),
+                Threads(_) => Threads(value as u8),
+            };
+        } else {
+            eprintln!("unable to parse {} as a number", args[3]);
+        }
+    }
+
+    Some(option)
+}
+
+#[derive(Clone)]
 pub struct SearchOptions {
     wtime: u64,
     btime: u64,
     winc: u64,
     binc: u64,
+    depth: u8,
+    info: bool,
 }
 
 impl Default for SearchOptions {
@@ -142,6 +222,8 @@ impl Default for SearchOptions {
             btime: u64::MAX,
             winc: 0,
             binc: 0,
+            depth: 255,
+            info: true,
         }
     }
 }

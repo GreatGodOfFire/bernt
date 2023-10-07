@@ -1,9 +1,9 @@
 mod eval;
-mod timeman;
 mod ordering;
+mod timeman;
 pub mod tt;
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::{
     movegen::movegen,
@@ -15,7 +15,7 @@ use crate::{
 use self::{
     eval::eval,
     timeman::TimeManager,
-    tt::{TTEntryType, TT, TTEntry},
+    tt::{TTEntry, TTEntryType, TT},
 };
 
 struct SearchContext<'a> {
@@ -30,7 +30,18 @@ struct SearchPosition {
     eval: i32,
 }
 
-pub fn search(pos: &Position, options: SearchOptions, repetitions: Vec<u64>, tt: &mut TT) -> Move {
+pub struct SearchResult {
+    pub best: Move,
+    pub nodes: u64,
+    pub elapsed: Duration,
+}
+
+pub fn search(
+    pos: &Position,
+    options: SearchOptions,
+    repetitions: Vec<u64>,
+    tt: &mut TT,
+) -> SearchResult {
     let instant = Instant::now();
 
     let mut context = SearchContext {
@@ -47,7 +58,7 @@ pub fn search(pos: &Position, options: SearchOptions, repetitions: Vec<u64>, tt:
         eval: eval(&pos),
     };
 
-    for depth in 1..=10 {
+    for depth in 1..=options.depth {
         if let Some((m, eval)) = context.negamax(&pos, -INF, INF, 0, depth) {
             let elapsed = instant.elapsed();
 
@@ -55,9 +66,11 @@ pub fn search(pos: &Position, options: SearchOptions, repetitions: Vec<u64>, tt:
             let nps = (nodes as f32 / elapsed.as_secs_f32()) as u64;
             let elapsed = elapsed.as_millis();
 
-            println!(
-                "info depth {depth} score cp {eval} nodes {nodes} nps {nps} time {elapsed} pv {m}"
-            );
+            if options.info {
+                println!(
+                    "info depth {depth} score cp {eval} nodes {nodes} nps {nps} time {elapsed} pv {m}"
+                );
+            }
 
             best = m;
         } else {
@@ -65,7 +78,11 @@ pub fn search(pos: &Position, options: SearchOptions, repetitions: Vec<u64>, tt:
         }
     }
 
-    best
+    SearchResult {
+        best,
+        nodes: context.nodes,
+        elapsed: instant.elapsed(),
+    }
 }
 
 const INF: i32 = 1000000;
@@ -230,7 +247,6 @@ impl SearchContext<'_> {
             let pos = self.update(pos, *m);
 
             if !pos.pos.in_check(!pos.pos.side) {
-
                 n_moves += 1;
 
                 self.nodes += 1;
@@ -271,7 +287,8 @@ impl SearchContext<'_> {
             TTEntryType::Exact
         };
 
-        self.tt.insert(TTEntry::new(self.hash(), best.1, best.0, depth, 0, ty));
+        self.tt
+            .insert(TTEntry::new(self.hash(), best.1, best.0, depth, 0, ty));
 
         Some(best)
     }
