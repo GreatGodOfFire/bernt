@@ -239,8 +239,7 @@ impl SearchContext<'_> {
             && (tt_ty == TTEntryType::Exact
                 || (tt_ty == TTEntryType::Lower && tt_eval >= beta)
                 || (tt_ty == TTEntryType::Upper && alpha >= tt_eval))
-            && plies > 0
-            && alpha.abs_diff(beta) == 1
+            && alpha + 1 == beta
         {
             // TODO: check with is_pseudolegal
             return Some((tt_move, tt_eval));
