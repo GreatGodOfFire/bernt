@@ -217,9 +217,8 @@ impl SearchContext<'_> {
         if update_hash {
             hash ^= zobrist::PIECES[m.to as usize][side][piece];
             hash ^= zobrist::BLACK;
+            self.repetitions.push(hash);
         }
-
-        self.repetitions.push(hash);
 
         return SearchPosition {
             pos: pos.pos.make_move(m),

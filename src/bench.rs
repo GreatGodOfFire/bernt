@@ -62,7 +62,7 @@ pub const BENCH_FENS: [&str; 50] = [
 pub fn bench() {
     let mut tt = TT::new_default();
     let mut options = SearchOptions::default();
-    options.depth = 5;
+    options.depth = 4;
     options.info = false;
 
     let mut nodes = 0;
