@@ -7,7 +7,7 @@ pub fn split_perft(pos: &Position, depth: u8) -> u64 {
 
     let mut i = 0;
 
-    for m in &movegen(pos) {
+    for m in &movegen::<true>(pos) {
         let pos = pos.make_move(*m);
 
         if !pos.in_check(!pos.side) {
@@ -27,7 +27,7 @@ fn perft(pos: &Position, depth: u8) -> u64 {
 
     let mut i = 0;
 
-    for m in &movegen(pos) {
+    for m in &movegen::<true>(pos) {
         let pos = pos.make_move(*m);
 
         if !pos.in_check(!pos.side) {

@@ -123,7 +123,7 @@ pub const fn west(x: u64) -> u64 {
 pub const FILE_A: u64 = 0x101010101010101;
 pub const FILE_H: u64 = 0x8080808080808080;
 
-pub fn movegen(pos: &Position) -> MoveList {
+pub fn movegen<const QUIETS: bool>(pos: &Position) -> MoveList {
     use PieceType::*;
 
     let mut moves = MoveList::new();
@@ -133,17 +133,17 @@ pub fn movegen(pos: &Position) -> MoveList {
     let us = pos.colors[pos.side as usize];
     let them = pos.colors[!pos.side as usize];
 
-    queen_moves(pos.pieces[Queen] & us, us, them, &mut moves);
-    rook_moves(pos.pieces[Rook] & us, us, them, &mut moves);
-    bishop_moves(pos.pieces[Bishop] & us, us, them, &mut moves);
+    queen_moves::<QUIETS>(pos.pieces[Queen] & us, us, them, &mut moves);
+    rook_moves::<QUIETS>(pos.pieces[Rook] & us, us, them, &mut moves);
+    bishop_moves::<QUIETS>(pos.pieces[Bishop] & us, us, them, &mut moves);
 
-    knight_moves(pos.pieces[Knight] & us, !us, them, &mut moves);
+    knight_moves::<QUIETS>(pos.pieces[Knight] & us, !us, them, &mut moves);
 
-    if !pos.in_check(pos.side) {
+    if !pos.in_check(pos.side) && QUIETS {
         castling_moves(pos.pieces[King] & us, empty, pos, &mut moves);
     }
 
-    pawn_moves(
+    pawn_moves::<QUIETS>(
         pos.pieces[Pawn] & us,
         empty,
         them,
@@ -151,7 +151,7 @@ pub fn movegen(pos: &Position) -> MoveList {
         pos.side,
         &mut moves,
     );
-    king_moves(pos.pieces[King] & us, empty, them, &mut moves);
+    king_moves::<QUIETS>(pos.pieces[King] & us, empty, them, &mut moves);
 
     moves
 }
@@ -164,7 +164,7 @@ fn shift(side: PieceColor, bitboard: u64, by: u8) -> u64 {
     }
 }
 
-fn pawn_moves(
+fn pawn_moves<const QUIETS: bool>(
     pawns: u64,
     empty: u64,
     them: u64,
@@ -174,32 +174,34 @@ fn pawn_moves(
 ) {
     use PieceType::*;
 
-    let double_push_rank = match side {
-        PieceColor::White => RANK_2,
-        PieceColor::Black => RANK_7,
-    };
+    if QUIETS {
+        let double_push_rank = match side {
+            PieceColor::White => RANK_2,
+            PieceColor::Black => RANK_7,
+        };
 
-    let (fw, bw): (fn(_) -> _, fn(_) -> _) = match side {
-        PieceColor::White => (north, south),
-        PieceColor::Black => (south, north),
-    };
+        let (fw, bw): (fn(_) -> _, fn(_) -> _) = match side {
+            PieceColor::White => (north, south),
+            PieceColor::Black => (south, north),
+        };
 
-    let push = pawns & bw(empty);
-    bitloop!(push => from, fw(push) => to, {
-        if to >= 56 || to <= 7 {
-            moves += Move::new(from, to, MoveFlag::PROMO, Pawn);
-            moves += Move::new(from, to, MoveFlag::PROMO | 1, Pawn);
-            moves += Move::new(from, to, MoveFlag::PROMO | 2, Pawn);
-            moves += Move::new(from, to, MoveFlag::PROMO | 3, Pawn);
-        } else {
-            moves += Move::new(from, to, MoveFlag::QUIET, Pawn);
-        }
-    });
+        let push = pawns & bw(empty);
+        bitloop!(push => from, fw(push) => to, {
+            if to >= 56 || to <= 7 {
+                moves += Move::new(from, to, MoveFlag::PROMO, Pawn);
+                moves += Move::new(from, to, MoveFlag::PROMO | 1, Pawn);
+                moves += Move::new(from, to, MoveFlag::PROMO | 2, Pawn);
+                moves += Move::new(from, to, MoveFlag::PROMO | 3, Pawn);
+            } else {
+                moves += Move::new(from, to, MoveFlag::QUIET, Pawn);
+            }
+        });
 
-    let double_push = push & double_push_rank & bw(bw(empty));
-    bitloop!(double_push => from, fw(fw(double_push)) => to, {
-        moves += Move::new(from, to, MoveFlag::DOUBLE_PAWN, Pawn);
-    });
+        let double_push = push & double_push_rank & bw(bw(empty));
+        bitloop!(double_push => from, fw(fw(double_push)) => to, {
+            moves += Move::new(from, to, MoveFlag::DOUBLE_PAWN, Pawn);
+        });
+    }
 
     let (left_mask, right_mask) = match side {
         PieceColor::White => (!FILE_A, !FILE_H),

@@ -5,13 +5,20 @@ use crate::{
 
 use super::{is_attacking, MoveList};
 
-pub fn king_moves(king: u64, empty: u64, them: u64, mut movelist: &mut MoveList) {
+pub fn king_moves<const QUIETS: bool>(
+    king: u64,
+    empty: u64,
+    them: u64,
+    mut movelist: &mut MoveList,
+) {
     let from = king.trailing_zeros() as u8;
     let moves = LOOKUP[from as usize];
 
-    bitloop!(moves & empty => to, {
-        movelist += Move::new(from, to, MoveFlag::QUIET, PieceType::King);
-    });
+    if QUIETS {
+        bitloop!(moves & empty => to, {
+            movelist += Move::new(from, to, MoveFlag::QUIET, PieceType::King);
+        });
+    }
 
     bitloop!(moves & them => to, {
         movelist += Move::new(from, to, MoveFlag::CAP, PieceType::King);

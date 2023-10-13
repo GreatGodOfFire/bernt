@@ -83,7 +83,7 @@ fn main() {
                     repetitions.push(pos.hash());
 
                     for m in &args[2..] {
-                        let moves = movegen(&pos);
+                        let moves = movegen::<true>(&pos);
 
                         for n in &moves {
                             if n.to_string().as_str() == *m {
@@ -106,7 +106,7 @@ fn main() {
 
                     if moves_start < args.len() {
                         for m in &args[moves_start + 1..] {
-                            let moves = movegen(&pos);
+                            let moves = movegen::<true>(&pos);
 
                             for n in &moves {
                                 if n.to_string().as_str() == *m {

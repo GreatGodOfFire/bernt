@@ -1,5 +1,6 @@
 mod eval;
 mod ordering;
+mod qsearch;
 mod timeman;
 pub mod tt;
 
@@ -114,7 +115,7 @@ impl SearchContext<'_> {
         false
     }
 
-    fn update(&mut self, pos: &SearchPosition, m: Move) -> SearchPosition {
+    fn update(&mut self, pos: &SearchPosition, m: Move, update_hash: bool) -> SearchPosition {
         use PieceType::*;
 
         let mut eval = pos.eval;
@@ -126,40 +127,47 @@ impl SearchContext<'_> {
 
         let mut hash = *self.repetitions.last().unwrap();
 
-        hash ^= zobrist::PIECES[m.from as usize][side][piece];
         eval -= PSTS[piece][flip(m.from, side) as usize];
 
-        if pos.pos.en_passant > 0 {
-            hash ^= zobrist::EN_PASSANT[pos.pos.en_passant as usize % 8];
-        }
+        if update_hash {
+            hash ^= zobrist::PIECES[m.from as usize][side][piece];
 
-        if m.flags == MoveFlag::DOUBLE_PAWN {
-            hash ^= zobrist::EN_PASSANT[m.to as usize % 8];
-        }
-
-        if piece == PieceType::King {
-            if pos.pos.castling[side][0] >= 0 {
-                hash ^= zobrist::CASTLING[side][0];
+            if pos.pos.en_passant > 0 {
+                hash ^= zobrist::EN_PASSANT[pos.pos.en_passant as usize % 8];
             }
-            if pos.pos.castling[side][1] >= 0 {
+
+            if m.flags == MoveFlag::DOUBLE_PAWN {
+                hash ^= zobrist::EN_PASSANT[m.to as usize % 8];
+            }
+
+            if piece == PieceType::King {
+                if pos.pos.castling[side][0] >= 0 {
+                    hash ^= zobrist::CASTLING[side][0];
+                }
+                if pos.pos.castling[side][1] >= 0 {
+                    hash ^= zobrist::CASTLING[side][1];
+                }
+            } else if m.from == pos.pos.castling[side][0] as u8 {
+                hash ^= zobrist::CASTLING[side][0];
+            } else if m.from == pos.pos.castling[side][1] as u8 {
                 hash ^= zobrist::CASTLING[side][1];
             }
-        } else if m.from == pos.pos.castling[side][0] as u8 {
-            hash ^= zobrist::CASTLING[side][0];
-        } else if m.from == pos.pos.castling[side][1] as u8 {
-            hash ^= zobrist::CASTLING[side][1];
         }
 
         match m.flags {
             MoveFlag::CASTLE_LEFT => {
-                hash ^= zobrist::PIECES[m.to as usize - 2][side][Rook];
-                hash ^= zobrist::PIECES[m.to as usize + 1][side][Rook];
+                if update_hash {
+                    hash ^= zobrist::PIECES[m.to as usize - 2][side][Rook];
+                    hash ^= zobrist::PIECES[m.to as usize + 1][side][Rook];
+                }
                 eval -= PSTS[Rook][flip(m.to - 2, side) as usize];
                 eval += PSTS[Rook][flip(m.to + 1, side) as usize];
             }
             MoveFlag::CASTLE_RIGHT => {
-                hash ^= zobrist::PIECES[m.to as usize + 1][side][Rook];
-                hash ^= zobrist::PIECES[m.to as usize - 1][side][Rook];
+                if update_hash {
+                    hash ^= zobrist::PIECES[m.to as usize + 1][side][Rook];
+                    hash ^= zobrist::PIECES[m.to as usize - 1][side][Rook];
+                }
                 eval -= PSTS[Rook][flip(m.to + 1, side) as usize];
                 eval += PSTS[Rook][flip(m.to - 1, side) as usize];
             }
@@ -170,7 +178,9 @@ impl SearchContext<'_> {
                         PieceColor::Black => 8,
                     }) as u8;
 
-                hash ^= zobrist::PIECES[sq as usize][!side][Pawn];
+                if update_hash {
+                    hash ^= zobrist::PIECES[sq as usize][!side][Pawn];
+                }
                 eval += PSTS[Pawn][flip(sq, side) as usize];
             }
             _ => {
@@ -183,14 +193,16 @@ impl SearchContext<'_> {
                         }
                     }
 
-                    hash ^= zobrist::PIECES[m.to as usize][!side][target];
                     eval += PSTS[target][flip(m.to, !side) as usize];
 
-                    if target == Rook {
-                        if m.to == pos.pos.castling[!side][0] as u8 {
-                            hash ^= zobrist::CASTLING[!side][0];
-                        } else if m.to == pos.pos.castling[!side][1] as u8 {
-                            hash ^= zobrist::CASTLING[!side][1];
+                    if update_hash {
+                        hash ^= zobrist::PIECES[m.to as usize][!side][target];
+                        if target == Rook {
+                            if m.to == pos.pos.castling[!side][0] as u8 {
+                                hash ^= zobrist::CASTLING[!side][0];
+                            } else if m.to == pos.pos.castling[!side][1] as u8 {
+                                hash ^= zobrist::CASTLING[!side][1];
+                            }
                         }
                     }
                 }
@@ -201,9 +213,11 @@ impl SearchContext<'_> {
             }
         }
 
-        hash ^= zobrist::PIECES[m.to as usize][side][piece];
         eval += PSTS[piece][flip(m.to, side) as usize];
-        hash ^= zobrist::BLACK;
+        if update_hash {
+            hash ^= zobrist::PIECES[m.to as usize][side][piece];
+            hash ^= zobrist::BLACK;
+        }
 
         self.repetitions.push(hash);
 
@@ -226,7 +240,7 @@ impl SearchContext<'_> {
         depth: u8,
     ) -> Option<(Move, i32)> {
         if depth == 0 {
-            return Some((Move::NULL, pos.eval));
+            return Some((Move::NULL, self.qsearch(pos, plies, alpha, beta)));
         }
 
         let in_check = pos.pos.in_check(pos.pos.side);
@@ -247,8 +261,8 @@ impl SearchContext<'_> {
 
         let mut search_pv = true;
 
-        for m in &self.order_moves(movegen(&pos.pos), tt_move) {
-            let pos = self.update(pos, *m);
+        for m in &self.order_moves(movegen::<true>(&pos.pos), tt_move) {
+            let pos = self.update(pos, *m, true);
 
             if !pos.pos.in_check(!pos.pos.side) {
                 n_moves += 1;

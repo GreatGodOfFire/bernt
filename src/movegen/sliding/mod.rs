@@ -9,27 +9,36 @@ use self::magic::{BISHOP_ATTACKS, BISHOP_MAGICS, ROOK_ATTACKS, ROOK_MAGICS};
 
 use super::MoveList;
 
-pub fn queen_moves(queens: u64, us: u64, them: u64, mut movelist: &mut MoveList) {
+pub fn queen_moves<const QUIETS: bool>(
+    queens: u64,
+    us: u64,
+    them: u64,
+    mut movelist: &mut MoveList,
+) {
     bitloop!(queens => queen, {
         let moves = single_rook_moves(queen, us, them)
             | single_bishop_moves(queen, us, them);
 
-        bitloop!(moves & !them => to, {
-            movelist += Move::new(queen, to, MoveFlag::QUIET, PieceType::Queen);
-        });
+        if QUIETS {
+            bitloop!(moves & !them => to, {
+                movelist += Move::new(queen, to, MoveFlag::QUIET, PieceType::Queen);
+            });
+        }
         bitloop!(moves & them => to, {
             movelist += Move::new(queen, to, MoveFlag::CAP, PieceType::Queen);
         });
     });
 }
 
-pub fn rook_moves(rooks: u64, us: u64, them: u64, mut movelist: &mut MoveList) {
+pub fn rook_moves<const QUIETS: bool>(rooks: u64, us: u64, them: u64, mut movelist: &mut MoveList) {
     bitloop!(rooks => rook, {
         let moves = single_rook_moves(rook, us, them);
 
-        bitloop!(moves & !them => to, {
-            movelist += Move::new(rook, to, MoveFlag::QUIET, PieceType::Rook);
-        });
+        if QUIETS {
+            bitloop!(moves & !them => to, {
+                movelist += Move::new(rook, to, MoveFlag::QUIET, PieceType::Rook);
+            });
+        }
         bitloop!(moves & them => to, {
             movelist += Move::new(rook, to, MoveFlag::CAP, PieceType::Rook);
         });
@@ -46,13 +55,20 @@ pub fn single_rook_moves(rook: u8, us: u64, them: u64) -> u64 {
         & !us
 }
 
-pub fn bishop_moves(bishops: u64, us: u64, them: u64, mut movelist: &mut MoveList) {
+pub fn bishop_moves<const QUIETS: bool>(
+    bishops: u64,
+    us: u64,
+    them: u64,
+    mut movelist: &mut MoveList,
+) {
     bitloop!(bishops => bishop, {
         let moves = single_bishop_moves(bishop, us, them);
 
-        bitloop!(moves & !them => to, {
-            movelist += Move::new(bishop, to, MoveFlag::QUIET, PieceType::Bishop);
-        });
+        if QUIETS {
+            bitloop!(moves & !them => to, {
+                movelist += Move::new(bishop, to, MoveFlag::QUIET, PieceType::Bishop);
+            });
+        }
         bitloop!(moves & them => to, {
             movelist += Move::new(bishop, to, MoveFlag::CAP, PieceType::Bishop);
         });

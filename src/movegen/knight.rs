@@ -5,12 +5,19 @@ use crate::{
 
 use super::MoveList;
 
-pub fn knight_moves(knights: u64, free_squares: u64, enemies: u64, mut moves: &mut MoveList) {
+pub fn knight_moves<const QUIETS: bool>(
+    knights: u64,
+    free_squares: u64,
+    enemies: u64,
+    mut moves: &mut MoveList,
+) {
     bitloop!(knights => from, {
         let tos = KNIGHT_MOVES[from as usize] & free_squares;
-        bitloop!(tos & !enemies => to, {
-            moves += Move::new(from, to, MoveFlag::QUIET, PieceType::Knight);
-        });
+        if QUIETS {
+            bitloop!(tos & !enemies => to, {
+                moves += Move::new(from, to, MoveFlag::QUIET, PieceType::Knight);
+            });
+        }
         bitloop!(tos & enemies => to, {
             moves += Move::new(from, to, MoveFlag::CAP, PieceType::Knight);
         });
