@@ -290,7 +290,7 @@ impl SearchContext<'_> {
                 if -res.1 > best.1 {
                     best = (*m, -res.1);
                     search_pv = false;
-                    if res.1 >= beta {
+                    if -res.1 >= beta {
                         self.repetitions.pop();
                         return Some((*m, -res.1));
                     }
