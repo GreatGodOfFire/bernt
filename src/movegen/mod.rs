@@ -168,7 +168,7 @@ fn pawn_moves<const QUIETS: bool>(
     pawns: u64,
     empty: u64,
     them: u64,
-    en_passant: i8,
+    en_passant: u8,
     side: PieceColor,
     mut moves: &mut MoveList,
 ) {
@@ -233,7 +233,7 @@ fn pawn_moves<const QUIETS: bool>(
         }
     });
 
-    if en_passant >= 0 {
+    if en_passant != 64 {
         let ep_bit = 1 << en_passant;
         let ep_squares = shift(!side, ep_bit, 7) | shift(!side, ep_bit, 9);
         let ep_rank = match side {

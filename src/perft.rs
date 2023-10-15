@@ -1,4 +1,4 @@
-use crate::{movegen, position::Position};
+use crate::{movegen::movegen, position::Position};
 
 pub fn split_perft(pos: &Position, depth: u8) -> u64 {
     if depth == 0 {

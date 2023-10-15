@@ -36,7 +36,7 @@ pub fn castling_moves(king: u64, empty: u64, pos: &Position, mut movelist: &mut 
     let king_square = king.trailing_zeros() as u8;
 
     if QUEENSIDE_CASTLE & rank == 0
-        && pos.castling[side][0] >= 0
+        && pos.castling[side][0] != 64
         && !is_attacking(king_square - 1, pos, !side)
     {
         movelist += Move::new(
@@ -48,7 +48,7 @@ pub fn castling_moves(king: u64, empty: u64, pos: &Position, mut movelist: &mut 
     }
 
     if KINGSIDE_CASTLE & rank == 0
-        && pos.castling[side][1] >= 0
+        && pos.castling[side][1] != 64
         && !is_attacking(king_square + 1, pos, !side)
     {
         movelist += Move::new(

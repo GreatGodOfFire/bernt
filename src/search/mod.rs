@@ -33,6 +33,7 @@ struct SearchPosition {
 
 pub struct SearchResult {
     pub best: Move,
+    pub score: i32,
     pub nodes: u64,
     pub elapsed: Duration,
 }
@@ -52,7 +53,7 @@ pub fn search(
         tt,
     };
 
-    let mut best = Move::NULL;
+    let mut best = (Move::NULL, -INF);
 
     let pos = SearchPosition {
         pos: pos.clone(),
@@ -60,7 +61,7 @@ pub fn search(
     };
 
     for depth in 1..=options.depth {
-        if let Some((m, eval)) = context.negamax(&pos, -INF, INF, 0, depth) {
+        if let Some((m, score)) = context.negamax(&pos, -INF, INF, 0, depth) {
             let elapsed = instant.elapsed();
 
             let nodes = context.nodes;
@@ -69,50 +70,55 @@ pub fn search(
 
             if options.info {
                 println!(
-                    "info depth {depth} score cp {eval} nodes {nodes} nps {nps} time {elapsed} pv {m}"
+                    "info depth {depth} score cp {score} nodes {nodes} nps {nps} time {elapsed} pv {m}"
                 );
             }
 
-            best = m;
+            best = (m, score);
         } else {
             break;
         }
     }
 
     SearchResult {
-        best,
+        best: best.0,
+        score: best.1,
         nodes: context.nodes,
         elapsed: instant.elapsed(),
     }
 }
 
 const INF: i32 = 1000000;
-const CHECKMATE: i32 = 100000;
+pub const CHECKMATE: i32 = 100000;
+
+pub fn is_draw(pos: &Position, reps: &[u64]) -> bool {
+    if pos.halfmove >= 100 {
+        return true;
+    }
+
+    if pos.halfmove < 4 || reps.len() < 4 {
+        return false;
+    }
+
+    let mut d = reps.len() - 1;
+    let mut n = 0;
+
+    while d > 0 {
+        d -= 1;
+        if reps[reps.len() - 1] == reps[d] {
+            n += 1;
+            if n == 2 {
+                return true;
+            }
+        }
+    }
+
+    false
+}
 
 impl SearchContext<'_> {
     fn is_draw(&self, pos: &Position) -> bool {
-        if pos.halfmove >= 100 {
-            return true;
-        }
-
-        if pos.halfmove < 4 || self.repetitions.len() < 4 {
-            return false;
-        }
-
-        let mut d = self.repetitions.len() - 1;
-        let mut n = 0;
-
-        while d > 0 {
-            d -= 1;
-            if self.repetitions[self.repetitions.len() - 1] == self.repetitions[d] {
-                n += 1;
-                if n == 2 {
-                    return true;
-                }
-            }
-        }
-
-        false
+        is_draw(pos, &self.repetitions)
     }
 
     fn update(&mut self, pos: &SearchPosition, m: Move, update_hash: bool) -> SearchPosition {
@@ -132,7 +138,7 @@ impl SearchContext<'_> {
         if update_hash {
             hash ^= zobrist::PIECES[m.from as usize][side][piece];
 
-            if pos.pos.en_passant > 0 {
+            if pos.pos.en_passant != 64 {
                 hash ^= zobrist::EN_PASSANT[pos.pos.en_passant as usize % 8];
             }
 
@@ -141,15 +147,15 @@ impl SearchContext<'_> {
             }
 
             if piece == PieceType::King {
-                if pos.pos.castling[side][0] >= 0 {
+                if pos.pos.castling[side][0] != 64 {
                     hash ^= zobrist::CASTLING[side][0];
                 }
-                if pos.pos.castling[side][1] >= 0 {
+                if pos.pos.castling[side][1] != 64 {
                     hash ^= zobrist::CASTLING[side][1];
                 }
-            } else if m.from == pos.pos.castling[side][0] as u8 {
+            } else if m.from == pos.pos.castling[side][0] {
                 hash ^= zobrist::CASTLING[side][0];
-            } else if m.from == pos.pos.castling[side][1] as u8 {
+            } else if m.from == pos.pos.castling[side][1] {
                 hash ^= zobrist::CASTLING[side][1];
             }
         }
@@ -172,7 +178,7 @@ impl SearchContext<'_> {
                 eval += PSTS[Rook][flip(m.to - 1, side) as usize];
             }
             MoveFlag::EP => {
-                let sq = (pos.pos.en_passant
+                let sq = (pos.pos.en_passant as i8
                     + match side {
                         PieceColor::White => -8,
                         PieceColor::Black => 8,
@@ -198,9 +204,9 @@ impl SearchContext<'_> {
                     if update_hash {
                         hash ^= zobrist::PIECES[m.to as usize][!side][target];
                         if target == Rook {
-                            if m.to == pos.pos.castling[!side][0] as u8 {
+                            if m.to == pos.pos.castling[!side][0] {
                                 hash ^= zobrist::CASTLING[!side][0];
-                            } else if m.to == pos.pos.castling[!side][1] as u8 {
+                            } else if m.to == pos.pos.castling[!side][1] {
                                 hash ^= zobrist::CASTLING[!side][1];
                             }
                         }
@@ -301,7 +307,7 @@ impl SearchContext<'_> {
 
         if n_moves == 0 {
             if in_check {
-                return Some((Move::NULL, -CHECKMATE + plies as i32));
+                return Some((Move::NULL, -CHECKMATE - 255 + plies as i32));
             } else {
                 return Some((Move::NULL, 0));
             }

@@ -1,17 +1,13 @@
-mod bench;
-mod bitboard;
-mod movegen;
-mod perft;
-mod position;
-mod search;
-mod zobrist;
-
 use std::{env, io::stdin, time::Instant};
 
-use position::Position;
-use search::{search, tt::TT};
-
-use crate::{bench::bench, movegen::movegen, perft::split_perft};
+use bernt::{
+    bench::bench,
+    movegen::movegen,
+    perft::split_perft,
+    position::Position,
+    search::{search, tt::TT},
+    SearchOptions,
+};
 
 fn main() {
     let args: Vec<_> = env::args().collect();
@@ -203,27 +199,4 @@ fn parse_setoption(args: &[&str]) -> Option<UciOption> {
     }
 
     Some(option)
-}
-
-#[derive(Clone)]
-pub struct SearchOptions {
-    wtime: u64,
-    btime: u64,
-    winc: u64,
-    binc: u64,
-    depth: u8,
-    info: bool,
-}
-
-impl Default for SearchOptions {
-    fn default() -> Self {
-        Self {
-            wtime: u64::MAX,
-            btime: u64::MAX,
-            winc: 0,
-            binc: 0,
-            depth: 255,
-            info: true,
-        }
-    }
 }

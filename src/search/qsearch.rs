@@ -1,4 +1,4 @@
-use crate::movegen;
+use crate::movegen::movegen;
 
 use super::{SearchContext, SearchPosition};
 

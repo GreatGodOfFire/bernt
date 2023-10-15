@@ -4,8 +4,8 @@ use std::{fmt, ops};
 pub struct Position {
     pub pieces: [u64; 6],
     pub colors: [u64; 2],
-    pub castling: [[i8; 2]; 2],
-    pub en_passant: i8,
+    pub castling: [[u8; 2]; 2],
+    pub en_passant: u8,
     pub halfmove: u8,
     pub side: PieceColor,
 }
@@ -54,7 +54,18 @@ impl Position {
             ],
             colors: [0xffff, 0xffff000000000000],
             castling: [[0, 7], [56, 63]],
-            en_passant: -1,
+            en_passant: 64,
+            halfmove: 0,
+            side: PieceColor::White,
+        }
+    }
+
+    pub fn empty() -> Self {
+        Position {
+            pieces: [0; 6],
+            colors: [0; 2],
+            castling: [[64; 2]; 2],
+            en_passant: 64,
             halfmove: 0,
             side: PieceColor::White,
         }
@@ -83,19 +94,19 @@ impl Position {
 
         if m.flags == MoveFlag::DOUBLE_PAWN {
             pos.en_passant = match pos.side {
-                PieceColor::White => m.to as i8 - 8,
-                PieceColor::Black => m.to as i8 + 8,
+                PieceColor::White => m.to - 8,
+                PieceColor::Black => m.to + 8,
             }
         } else {
-            pos.en_passant = -1;
+            pos.en_passant = 64;
         }
 
         if piece == PieceType::King {
-            pos.castling[side] = [-1, -1];
+            pos.castling[side] = [64, 64];
         } else if m.from == pos.castling[side][0] as u8 {
-            pos.castling[side][0] = -1;
+            pos.castling[side][0] = 64;
         } else if m.from == pos.castling[side][1] as u8 {
-            pos.castling[side][1] = -1;
+            pos.castling[side][1] = 64;
         }
 
         match m.flags {
@@ -108,7 +119,7 @@ impl Position {
                 pos.colors[side] ^= to_bit << 1 | to_bit >> 1;
             }
             MoveFlag::EP => {
-                let sq = (en_passant
+                let sq = (en_passant as i8
                     + match side {
                         PieceColor::White => -8,
                         PieceColor::Black => 8,
@@ -133,9 +144,9 @@ impl Position {
 
                     if target == Rook {
                         if m.to == pos.castling[!side][0] as u8 {
-                            pos.castling[!side][0] = -1;
+                            pos.castling[!side][0] = 64;
                         } else if m.to == pos.castling[!side][1] as u8 {
-                            pos.castling[!side][1] = -1;
+                            pos.castling[!side][1] = 64;
                         }
                     }
                 }
@@ -184,14 +195,7 @@ impl Position {
     }
 
     pub fn from_fen(s: &str) -> Self {
-        let mut pos = Position {
-            pieces: [0; 6],
-            colors: [0; 2],
-            castling: [[-1; 2]; 2],
-            en_passant: -1,
-            halfmove: 0,
-            side: PieceColor::White,
-        };
+        let mut pos = Position::empty();
 
         let mut i = 56;
         let parts: Vec<_> = s.split(' ').collect();
@@ -235,7 +239,7 @@ impl Position {
         }
 
         if parts[3] != "-" {
-            pos.en_passant = uci_sq(parts[3]) as i8;
+            pos.en_passant = uci_sq(parts[3]);
         }
 
         pos.halfmove = parts.get(4).and_then(|x| x.parse().ok()).unwrap_or(0);

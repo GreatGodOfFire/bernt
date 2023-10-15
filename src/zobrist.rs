@@ -1,5 +1,5 @@
 #![allow(clippy::needless_range_loop)]
-use crate::{position::PieceType, Position};
+use crate::position::{PieceType, Position};
 
 pub const PIECES: [[[u64; 6]; 2]; 64] = _RANDOMS.0;
 pub const BLACK: u64 = _RANDOMS.1;
@@ -18,11 +18,11 @@ impl Position {
         }
 
         for (x, y) in self.castling.iter().zip(CASTLING.iter()) {
-            hash ^= ((x[0] != -1) as u64).wrapping_mul(y[0]);
-            hash ^= ((x[1] != -1) as u64).wrapping_mul(y[1]);
+            hash ^= ((x[0] != 64) as u64).wrapping_mul(y[0]);
+            hash ^= ((x[1] != 64) as u64).wrapping_mul(y[1]);
         }
 
-        if self.en_passant != -1 {
+        if self.en_passant != 64 {
             hash ^= EN_PASSANT[self.en_passant as usize % 8];
         }
 
