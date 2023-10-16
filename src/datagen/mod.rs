@@ -14,7 +14,7 @@ use chrono::Local;
 use crate::{
     marlinformat::PackedBoard,
     movegen::movegen,
-    position::{PieceColor, PieceType, Position},
+    position::{Move, PieceColor, PieceType, Position},
     search::{is_draw, search, tt::TT, CHECKMATE},
     SearchOptions,
 };
@@ -211,7 +211,7 @@ fn game(depth: u8) -> Vec<PackedBoard> {
             }
         }
 
-        if is_draw(&pos, &reps) {
+        if is_draw(&pos, &reps) || res.best == Move::NULL {
             break 1;
         }
     };
