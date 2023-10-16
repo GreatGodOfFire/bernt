@@ -242,13 +242,16 @@ impl SearchContext<'_> {
         alpha: i32,
         beta: i32,
         plies: u8,
-        depth: u8,
+        mut depth: u8,
     ) -> Option<(Move, i32)> {
+        let in_check = pos.pos.in_check(pos.pos.side);
+        if in_check && depth < 3 {
+            depth += 1;
+        }
         if depth == 0 {
             return Some((Move::NULL, self.qsearch(pos, plies, alpha, beta)));
         }
 
-        let in_check = pos.pos.in_check(pos.pos.side);
         let mut n_moves = 0;
 
         let mut best = (Move::NULL, alpha);
