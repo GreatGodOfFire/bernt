@@ -2,6 +2,10 @@ use std::{
     fmt,
     fs::{self, OpenOptions},
     io::{stdin, stdout, Write},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
     thread,
 };
 
@@ -90,6 +94,7 @@ pub fn datagen() {
                     fs::create_dir_all(&folder).unwrap();
 
                     let mut handles = vec![];
+                    let n_games = Arc::new(AtomicU64::new(0));
 
                     for id in 0..config.num_threads {
                         let mut n = games_per_t;
@@ -98,9 +103,10 @@ pub fn datagen() {
                         }
 
                         let folder = folder.clone();
+                        let n_games = n_games.clone();
 
                         handles.push(thread::spawn(move || {
-                            generate_games(id, n, folder, config.depth)
+                            generate_games(id, n, folder, config.depth, n_games)
                         }));
                     }
 
@@ -136,7 +142,7 @@ fn prompt() -> String {
     line
 }
 
-pub fn generate_games(id: u8, num_games: u64, folder: String, depth: u8) {
+pub fn generate_games(id: u8, num_games: u64, folder: String, depth: u8, n_games: Arc<AtomicU64>) {
     let mut file = OpenOptions::new()
         .create_new(true)
         .write(true)
@@ -146,6 +152,10 @@ pub fn generate_games(id: u8, num_games: u64, folder: String, depth: u8) {
     for _ in 0..num_games {
         let positions = game(depth);
         file.write_all(bytemuck::cast_slice(&positions)).unwrap();
+        let n = n_games.fetch_add(1, Ordering::SeqCst) + 1;
+        if n % 100 == 0 {
+            println!("Finished {n} games.");
+        }
     }
 }
 
@@ -172,6 +182,7 @@ fn game(depth: u8) -> Vec<PackedBoard> {
 
     let mut options = SearchOptions::default();
     options.depth = depth;
+    options.info = false;
 
     let mut tt = TT::new_default();
 
