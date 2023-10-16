@@ -1,19 +1,33 @@
+pub mod bench;
+pub mod bitboard;
+pub mod datagen;
+pub mod marlinformat;
+pub mod movegen;
+pub mod perft;
+pub mod position;
+pub mod search;
+pub mod zobrist;
+
 use std::{env, io::stdin, time::Instant};
 
-use bernt::{
+use crate::{
     bench::bench,
+    datagen::datagen,
     movegen::movegen,
     perft::split_perft,
     position::Position,
     search::{search, tt::TT},
-    SearchOptions,
 };
 
 fn main() {
     let args: Vec<_> = env::args().collect();
 
-    if args.len() == 2 && args[1] == "bench" {
-        bench();
+    if args.len() == 2 {
+        match args[1].as_str() {
+            "bench" => bench(),
+            "datagen" => datagen(),
+            _ => {}
+        }
         return;
     }
 
@@ -140,6 +154,29 @@ fn main() {
                 );
             }
             _ => {}
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct SearchOptions {
+    pub wtime: u64,
+    pub btime: u64,
+    pub winc: u64,
+    pub binc: u64,
+    pub depth: u8,
+    pub info: bool,
+}
+
+impl Default for SearchOptions {
+    fn default() -> Self {
+        Self {
+            wtime: u64::MAX,
+            btime: u64::MAX,
+            winc: 0,
+            binc: 0,
+            depth: 255,
+            info: true,
         }
     }
 }

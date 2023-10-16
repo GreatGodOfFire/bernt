@@ -28,6 +28,8 @@ name = "bernt"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "chrono",
+ "fastrand",
 ]
 
 [[package]]
@@ -76,16 +78,6 @@ name = "core-foundation-sys"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e496a50fda8aacccc86d7529e2c1e0892dbd0f898a6b5645b5561b89c3210efa"
-
-[[package]]
-name = "datagen"
-version = "0.1.0"
-dependencies = [
- "bernt",
- "bytemuck",
- "chrono",
- "fastrand",
-]
 
 [[package]]
 name = "fastrand"
