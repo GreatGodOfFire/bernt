@@ -21,7 +21,7 @@ impl TimeManager {
                 let inc = inc as f32;
                 let extra = (t - inc).max(0.0);
 
-                let max = (t - 20.0).max(0.0);
+                let max = (t - 25.0).max(0.0);
 
                 let x = max.min(inc * 3.0 / 4.0 + extra / 30 as f32);
 

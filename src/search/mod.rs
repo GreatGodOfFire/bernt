@@ -61,6 +61,9 @@ pub fn search(
     };
 
     for depth in 1..=options.depth {
+        if context.timeman.stop() {
+            break;
+        }
         if let Some((m, score)) = context.negamax(&pos, -INF, INF, 0, depth) {
             let elapsed = instant.elapsed();
 
@@ -281,28 +284,37 @@ impl SearchContext<'_> {
                 }
 
                 let res = if self.is_draw(&pos.pos) {
-                    (Move::NULL, 0)
+                    Some((Move::NULL, 0))
                 } else {
                     if search_pv {
-                        self.negamax(&pos, -beta, -alpha, plies + 1, depth - 1)?
+                        self.negamax(&pos, -beta, -alpha, plies + 1, depth - 1)
                     } else {
                         let mut res =
-                            self.negamax(&pos, -best.1 - 1, -best.1, plies + 1, depth - 1)?;
-                        if -res.1 > best.1 {
-                            res = self.negamax(&pos, -beta, -alpha, plies + 1, depth - 1)?;
+                            self.negamax(&pos, -best.1 - 1, -best.1, plies + 1, depth - 1);
+                        if let Some(r) = res {
+                            if -r.1 > best.1 {
+                                res = self.negamax(&pos, -beta, -alpha, plies + 1, depth - 1);
+                            }
                         }
 
                         res
                     }
                 };
 
-                if -res.1 > best.1 {
-                    best = (*m, -res.1);
-                    search_pv = false;
-                    if -res.1 >= beta {
-                        self.repetitions.pop();
-                        return Some((*m, -res.1));
+                if let Some(res) = res {
+                    if -res.1 > best.1 {
+                        best = (*m, -res.1);
+                        search_pv = false;
+                        if -res.1 >= beta {
+                            self.repetitions.pop();
+                            return Some((*m, -res.1));
+                        }
                     }
+                } else {
+                    if best.0 != Move::NULL && plies == 0 && depth > 1 {
+                        return Some(best);
+                    }
+                    return None;
                 }
             }
             self.repetitions.pop();
