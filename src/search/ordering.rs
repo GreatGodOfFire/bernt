@@ -6,8 +6,8 @@ use crate::{
 use super::{SearchContext, SearchPosition};
 
 impl SearchContext<'_> {
-    pub(super) fn order_moves(&self, mut moves: MoveList, pv: Move) -> MoveList {
-        moves.moves[..moves.len as usize].sort_unstable_by_key(|x| move_score(*x, pv));
+    pub(super) fn order_moves(&self, mut moves: MoveList, pos: &SearchPosition, pv: Move) -> MoveList {
+        moves.moves[..moves.len as usize].sort_unstable_by_key(|x| move_score(*x, pos, pv));
 
         moves
     }
@@ -38,10 +38,10 @@ pub const MVVLVA_LOOKUP: [[u8; 5]; 6] = [
 /* K */  [ 0,  0,  1,  4, 10],
 ];
 
-fn move_score(m: Move, pv: Move) -> u8 {
+fn move_score(m: Move, pos: &SearchPosition, pv: Move) -> u8 {
     if m == pv {
         return 0;
     }
 
-    255
+    255 - mvvlva(m, pos)
 }

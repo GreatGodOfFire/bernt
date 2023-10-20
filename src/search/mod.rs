@@ -272,7 +272,7 @@ impl SearchContext<'_> {
 
         let mut search_pv = true;
 
-        for m in &self.order_moves(movegen::<true>(&pos.pos), tt_move) {
+        for m in &self.order_moves(movegen::<true>(&pos.pos), &pos, tt_move) {
             let pos = self.update(pos, *m, true);
 
             if !pos.pos.in_check(!pos.pos.side) {
