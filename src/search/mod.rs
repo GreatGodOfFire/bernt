@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use crate::{
     movegen::movegen,
     position::{Move, MoveFlag, PieceColor, PieceType, Position},
-    search::eval::{flip, PSTS},
+    search::eval::{flip, EG_PSTS, MG_PSTS, PHASE},
     zobrist, SearchOptions,
 };
 
@@ -29,6 +29,9 @@ struct SearchContext<'a> {
 struct SearchPosition {
     pos: Position,
     eval: i32,
+    mg_eval: i32,
+    eg_eval: i32,
+    phase: i32,
 }
 
 pub struct SearchResult {
@@ -55,9 +58,14 @@ pub fn search(
 
     let mut best = (Move::NULL, -INF);
 
+    let (eval, mg_eval, eg_eval, phase) = eval(&pos);
+
     let pos = SearchPosition {
         pos: pos.clone(),
-        eval: eval(&pos),
+        eval,
+        mg_eval,
+        eg_eval,
+        phase,
     };
 
     for depth in 1..=options.depth {
@@ -127,7 +135,9 @@ impl SearchContext<'_> {
     fn update(&mut self, pos: &SearchPosition, m: Move, update_hash: bool) -> SearchPosition {
         use PieceType::*;
 
-        let mut eval = pos.eval;
+        let mut mg = pos.mg_eval;
+        let mut eg = pos.eg_eval;
+        let mut phase = pos.phase;
 
         let to_bit = 1 << m.to;
 
@@ -136,7 +146,8 @@ impl SearchContext<'_> {
 
         let mut hash = *self.repetitions.last().unwrap();
 
-        eval -= PSTS[piece][flip(m.from, side) as usize];
+        mg -= MG_PSTS[piece][flip(m.from, side) as usize];
+        eg -= EG_PSTS[piece][flip(m.from, side) as usize];
 
         if update_hash {
             hash ^= zobrist::PIECES[m.from as usize][side][piece];
@@ -169,16 +180,20 @@ impl SearchContext<'_> {
                     hash ^= zobrist::PIECES[m.to as usize - 2][side][Rook];
                     hash ^= zobrist::PIECES[m.to as usize + 1][side][Rook];
                 }
-                eval -= PSTS[Rook][flip(m.to - 2, side) as usize];
-                eval += PSTS[Rook][flip(m.to + 1, side) as usize];
+                mg -= MG_PSTS[Rook][flip(m.to - 2, side) as usize];
+                eg -= EG_PSTS[Rook][flip(m.to - 2, side) as usize];
+                mg += MG_PSTS[Rook][flip(m.to + 1, side) as usize];
+                eg += EG_PSTS[Rook][flip(m.to + 1, side) as usize];
             }
             MoveFlag::CASTLE_RIGHT => {
                 if update_hash {
                     hash ^= zobrist::PIECES[m.to as usize + 1][side][Rook];
                     hash ^= zobrist::PIECES[m.to as usize - 1][side][Rook];
                 }
-                eval -= PSTS[Rook][flip(m.to + 1, side) as usize];
-                eval += PSTS[Rook][flip(m.to - 1, side) as usize];
+                mg -= MG_PSTS[Rook][flip(m.to + 1, side) as usize];
+                eg -= EG_PSTS[Rook][flip(m.to + 1, side) as usize];
+                mg += MG_PSTS[Rook][flip(m.to - 1, side) as usize];
+                eg += EG_PSTS[Rook][flip(m.to - 1, side) as usize];
             }
             MoveFlag::EP => {
                 let sq = (pos.pos.en_passant as i8
@@ -190,7 +205,9 @@ impl SearchContext<'_> {
                 if update_hash {
                     hash ^= zobrist::PIECES[sq as usize][!side][Pawn];
                 }
-                eval += PSTS[Pawn][flip(sq, side) as usize];
+                mg += MG_PSTS[Pawn][flip(sq, side) as usize];
+                eg += EG_PSTS[Pawn][flip(sq, side) as usize];
+                phase -= PHASE[Pawn];
             }
             _ => {
                 if m.flags & MoveFlag::CAP != 0 {
@@ -202,7 +219,9 @@ impl SearchContext<'_> {
                         }
                     }
 
-                    eval += PSTS[target][flip(m.to, !side) as usize];
+                    mg += MG_PSTS[target][flip(m.to, !side) as usize];
+                    eg += EG_PSTS[target][flip(m.to, !side) as usize];
+                    phase -= PHASE[target];
 
                     if update_hash {
                         hash ^= zobrist::PIECES[m.to as usize][!side][target];
@@ -218,11 +237,13 @@ impl SearchContext<'_> {
 
                 if m.flags & MoveFlag::PROMO != 0 {
                     piece = m.promotion();
+                    phase += PHASE[m.promotion()] - PHASE[Pawn];
                 }
             }
         }
 
-        eval += PSTS[piece][flip(m.to, side) as usize];
+        mg += MG_PSTS[piece][flip(m.to, side) as usize];
+        eg += EG_PSTS[piece][flip(m.to, side) as usize];
         if update_hash {
             hash ^= zobrist::PIECES[m.to as usize][side][piece];
             hash ^= zobrist::BLACK;
@@ -231,7 +252,10 @@ impl SearchContext<'_> {
 
         return SearchPosition {
             pos: pos.pos.make_move(m),
-            eval: -eval,
+            eval: (-mg * phase + -eg * (24 - phase)) / 24,
+            mg_eval: -mg,
+            eg_eval: -eg,
+            phase,
         };
     }
 
