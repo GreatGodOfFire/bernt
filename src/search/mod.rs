@@ -72,22 +72,44 @@ pub fn search(
         if context.timeman.stop() {
             break;
         }
-        if let Some((m, score)) = context.negamax(&pos, -INF, INF, 0, depth) {
-            let elapsed = instant.elapsed();
 
-            let nodes = context.nodes;
-            let nps = (nodes as f32 / elapsed.as_secs_f32()) as u64;
-            let elapsed = elapsed.as_millis();
+        let mut window_size = 50;
+        let mut alpha = -INF;
+        let mut beta = INF;
 
-            if options.info {
-                println!(
-                    "info depth {depth} score cp {score} nodes {nodes} nps {nps} time {elapsed} pv {m}"
-                );
+        if depth >= 4 {
+            alpha = best.1 - window_size;
+            beta = best.1 + window_size;
+        }
+
+        loop {
+            let b = if let Some((m, score)) = context.negamax(&pos, alpha, beta, 0, depth) {
+                (m, score)
+            } else {
+                break;
+            };
+
+            if b.1 <= alpha {
+                beta = (alpha + beta) / 2;
+                alpha -= window_size;
+            } else if b.1 >= beta {
+                beta += window_size;
+            } else {
+                best = b;
+                break;
             }
+        }
 
-            best = (m, score);
-        } else {
-            break;
+        let elapsed = instant.elapsed();
+        let nodes = context.nodes;
+        let nps = (nodes as f32 / elapsed.as_secs_f32()) as u64;
+        let elapsed = elapsed.as_millis();
+        let (m, score) = best;
+
+        if options.info {
+            println!(
+                "info depth {depth} score cp {score} nodes {nodes} nps {nps} time {elapsed} pv {m}"
+            );
         }
     }
 
