@@ -98,6 +98,8 @@ pub fn search(
                 best = b;
                 break;
             }
+
+            window_size += window_size;
         }
 
         let elapsed = instant.elapsed();
