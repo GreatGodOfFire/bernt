@@ -136,8 +136,8 @@ pub fn is_draw(pos: &Position, reps: &[u64]) -> bool {
     let mut d = reps.len() - 1;
     let mut n = 0;
 
-    while d > 0 {
-        d -= 1;
+    while d > 3.max(reps.len() - pos.halfmove as usize) {
+        d -= 4;
         if reps[reps.len() - 1] == reps[d] {
             n += 1;
             if n == 2 {
