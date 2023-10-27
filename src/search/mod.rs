@@ -99,7 +99,7 @@ pub fn search(
                 break;
             }
 
-            window_size += window_size;
+            window_size += window_size / 2;
         }
 
         let elapsed = instant.elapsed();
