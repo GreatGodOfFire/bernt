@@ -2,7 +2,7 @@ EXE = bernt
 
 ifeq ($(OS),Windows_NT)
 	NAME := $(EXE).exe
-	COPY := copy target\release\bernt.exe
+	COPY := copy target\release\bernt.exe $(NAME)
 else
 	NAME := $(EXE)
 	COPY := cp target/release/bernt ./$(NAME)
