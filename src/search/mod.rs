@@ -8,6 +8,7 @@ pub mod tt;
 use std::time::{Duration, Instant};
 
 use crate::{
+    bitloop,
     movegen::movegen,
     position::{Move, MoveFlag, PieceColor, PieceType, Position},
     search::eval::{flip, EG_PSTS, MG_PSTS, PHASE},
@@ -154,6 +155,28 @@ pub fn is_draw(pos: &Position, reps: &[u64]) -> bool {
             if n == 2 {
                 return true;
             }
+        }
+    }
+
+    let white = pos.colors[PieceColor::White];
+    let black = pos.colors[PieceColor::Black];
+
+    if pos.pieces[PieceType::Pawn] == 0
+        && pos.pieces[PieceType::Rook] == 0
+        && pos.pieces[PieceType::Queen] == 0
+    {
+        let knights = pos.pieces[PieceType::Knight];
+        let bishops = pos.pieces[PieceType::Bishop];
+
+        if (knights & white).count_ones() <= 1
+            && (knights & black).count_ones() <= 1
+            && bishops == 0
+        {
+            return true;
+        } else if knights == 0
+            && (bishops & 0xaa55aa55aa55aa55 == 0 || bishops & 0x55aa55aa55aa55aa == 0)
+        {
+            return true;
         }
     }
 
