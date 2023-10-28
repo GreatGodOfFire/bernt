@@ -76,6 +76,12 @@ impl Position {
 
         let mut pos = self.clone();
 
+        if m == Move::NULL {
+            pos.en_passant = 64;
+            pos.side = !pos.side;
+            return pos;
+        }
+
         let mut piece = m.piece;
         let side = pos.side;
 

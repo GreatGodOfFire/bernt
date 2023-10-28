@@ -85,7 +85,7 @@ pub fn search(
         }
 
         loop {
-            let b = if let Some((m, score)) = context.negamax(&pos, alpha, beta, 0, depth) {
+            let b = if let Some((m, score)) = context.negamax(&pos, alpha, beta, 0, depth, false) {
                 (m, score)
             } else {
                 break;
@@ -163,12 +163,27 @@ impl SearchContext<'_> {
         let mut eg = pos.eg_eval;
         let mut phase = pos.phase;
 
+        let mut hash = *self.repetitions.last().unwrap();
+
+        if m == Move::NULL {
+            if update_hash {
+                hash ^= zobrist::BLACK;
+                self.repetitions.push(hash);
+            }
+
+            return SearchPosition {
+                pos: pos.pos.make_move(m),
+                eval: -pos.eval,
+                mg_eval: -mg,
+                eg_eval: -eg,
+                phase,
+            };
+        }
+
         let to_bit = 1 << m.to;
 
         let mut piece = m.piece;
         let side = pos.pos.side;
-
-        let mut hash = *self.repetitions.last().unwrap();
 
         mg -= MG_PSTS[piece][flip(m.from, side) as usize];
         eg -= EG_PSTS[piece][flip(m.from, side) as usize];
@@ -292,15 +307,16 @@ impl SearchContext<'_> {
         pos: &SearchPosition,
         alpha: i32,
         beta: i32,
-        plies: u8,
+        ply: u8,
         mut depth: u8,
+        is_nm: bool,
     ) -> Option<(Move, i32)> {
         let in_check = pos.pos.in_check(pos.pos.side);
         if in_check && depth < 3 {
             depth += 1;
         }
         if depth == 0 {
-            return Some((Move::NULL, self.qsearch(pos, plies, alpha, beta)));
+            return Some((Move::NULL, self.qsearch(pos, ply, alpha, beta)));
         }
 
         let mut n_moves = 0;
@@ -318,16 +334,32 @@ impl SearchContext<'_> {
             return Some((tt_move, tt_eval));
         }
 
+        if beta - alpha == 1
+            && !is_nm
+            && !in_check
+            && depth >= 3
+            && pos.eval >= beta
+            && ply > 0
+            && (pos.pos.pieces[PieceType::Pawn] & pos.pos.colors[pos.pos.side]).count_ones() > 0
+        {
+            let pos = self.update(pos, Move::NULL, true);
+            let (_, score) = self.negamax(&pos, -beta, -beta + 1, ply + 1, depth - 3, true)?;
+            self.repetitions.pop();
+            if -score >= beta {
+                return Some((Move::NULL, -score));
+            }
+        }
+
         let mut search_pv = true;
 
-        for m in &self.order_moves(movegen::<true>(&pos.pos), &pos, tt_move, plies) {
+        for m in &self.order_moves(movegen::<true>(&pos.pos), &pos, tt_move, ply) {
             let pos = self.update(pos, *m, true);
 
             if !pos.pos.in_check(!pos.pos.side) {
                 n_moves += 1;
 
                 self.nodes += 1;
-                if self.nodes % 2048 == 0 && self.timeman.stop() && !(plies == 0 && depth == 1) {
+                if self.nodes % 2048 == 0 && self.timeman.stop() && !(ply == 0 && depth == 1) {
                     return None;
                 }
 
@@ -335,13 +367,13 @@ impl SearchContext<'_> {
                     Some((Move::NULL, 0))
                 } else {
                     if search_pv {
-                        self.negamax(&pos, -beta, -alpha, plies + 1, depth - 1)
+                        self.negamax(&pos, -beta, -alpha, ply + 1, depth - 1, is_nm)
                     } else {
                         let mut res =
-                            self.negamax(&pos, -best.1 - 1, -best.1, plies + 1, depth - 1);
+                            self.negamax(&pos, -best.1 - 1, -best.1, ply + 1, depth - 1, is_nm);
                         if let Some(r) = res {
                             if -r.1 > best.1 {
-                                res = self.negamax(&pos, -beta, -alpha, plies + 1, depth - 1);
+                                res = self.negamax(&pos, -beta, -alpha, ply + 1, depth - 1, is_nm);
                             }
                         }
 
@@ -354,16 +386,16 @@ impl SearchContext<'_> {
                         best = (*m, -res.1);
                         search_pv = false;
                         if -res.1 >= beta {
-                            if m.flags == MoveFlag::QUIET && self.killers[plies as usize][0] != *m {
-                                self.killers[plies as usize][1] = self.killers[plies as usize][0];
-                                self.killers[plies as usize][0] = *m;
+                            if m.flags == MoveFlag::QUIET && self.killers[ply as usize][0] != *m {
+                                self.killers[ply as usize][1] = self.killers[ply as usize][0];
+                                self.killers[ply as usize][0] = *m;
                             }
                             self.repetitions.pop();
                             return Some((*m, -res.1));
                         }
                     }
                 } else {
-                    if best.0 != Move::NULL && plies == 0 && depth > 1 {
+                    if best.0 != Move::NULL && ply == 0 && depth > 1 {
                         return Some(best);
                     }
                     return None;
@@ -374,7 +406,7 @@ impl SearchContext<'_> {
 
         if n_moves == 0 {
             if in_check {
-                return Some((Move::NULL, -CHECKMATE - 255 + plies as i32));
+                return Some((Move::NULL, -CHECKMATE - 255 + ply as i32));
             } else {
                 return Some((Move::NULL, 0));
             }
