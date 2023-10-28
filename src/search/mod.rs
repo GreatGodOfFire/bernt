@@ -24,6 +24,7 @@ struct SearchContext<'a> {
     nodes: u64,
     repetitions: Vec<u64>,
     tt: &'a mut TT,
+    killers: [[Move; 2]; 256],
 }
 
 struct SearchPosition {
@@ -54,6 +55,7 @@ pub fn search(
         nodes: 0,
         repetitions,
         tt,
+        killers: [[Move::NULL; 2]; 256],
     };
 
     let mut best = (Move::NULL, -INF);
@@ -318,7 +320,7 @@ impl SearchContext<'_> {
 
         let mut search_pv = true;
 
-        for m in &self.order_moves(movegen::<true>(&pos.pos), &pos, tt_move) {
+        for m in &self.order_moves(movegen::<true>(&pos.pos), &pos, tt_move, plies) {
             let pos = self.update(pos, *m, true);
 
             if !pos.pos.in_check(!pos.pos.side) {
@@ -352,6 +354,10 @@ impl SearchContext<'_> {
                         best = (*m, -res.1);
                         search_pv = false;
                         if -res.1 >= beta {
+                            if m.flags == MoveFlag::QUIET && self.killers[plies as usize][0] != *m {
+                                self.killers[plies as usize][1] = self.killers[plies as usize][0];
+                                self.killers[plies as usize][0] = *m;
+                            }
                             self.repetitions.pop();
                             return Some((*m, -res.1));
                         }
