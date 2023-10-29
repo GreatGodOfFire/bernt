@@ -73,7 +73,7 @@ fn move_score(
     if m.flags == MoveFlag::QUIET {
         let history_score = history[m.piece][m.to as usize];
 
-        if history_score > 10000 {
+        if history_score > 16384 {
             return 30;
         }
     }
