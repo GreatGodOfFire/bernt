@@ -25,6 +25,7 @@ struct SearchContext<'a> {
     repetitions: Vec<u64>,
     tt: &'a mut TT,
     killers: [[Move; 2]; 256],
+    history: [[[u32; 64]; 6]; 2],
 }
 
 struct SearchPosition {
@@ -56,6 +57,7 @@ pub fn search(
         repetitions,
         tt,
         killers: [[Move::NULL; 2]; 256],
+        history: [[[0; 64]; 6]; 2],
     };
 
     let mut best = (Move::NULL, -INF);
@@ -389,6 +391,8 @@ impl SearchContext<'_> {
                             if m.flags == MoveFlag::QUIET && self.killers[ply as usize][0] != *m {
                                 self.killers[ply as usize][1] = self.killers[ply as usize][0];
                                 self.killers[ply as usize][0] = *m;
+                                self.history[!pos.pos.side][m.piece][m.to as usize] +=
+                                    depth as u32 * depth as u32;
                             }
                             self.repetitions.pop();
                             return Some((*m, -res.1));

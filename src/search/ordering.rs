@@ -13,8 +13,15 @@ impl SearchContext<'_> {
         pv: Move,
         plies: u8,
     ) -> MoveList {
-        moves.moves[..moves.len as usize]
-            .sort_unstable_by_key(|x| move_score(*x, pos, pv, self.killers[plies as usize]));
+        moves.moves[..moves.len as usize].sort_unstable_by_key(|x| {
+            move_score(
+                *x,
+                pos,
+                pv,
+                self.killers[plies as usize],
+                &self.history[pos.pos.side],
+            )
+        });
 
         moves
     }
@@ -45,7 +52,13 @@ pub const MVVLVA_LOOKUP: [[u8; 5]; 6] = [
 /* K */  [ 0,  2,  2,  4,  8],
 ];
 
-fn move_score(m: Move, pos: &SearchPosition, pv: Move, killers: [Move; 2]) -> u8 {
+fn move_score(
+    m: Move,
+    pos: &SearchPosition,
+    pv: Move,
+    killers: [Move; 2],
+    history: &[[u32; 64]; 6],
+) -> u8 {
     if m == pv {
         return 0;
     }
@@ -55,6 +68,14 @@ fn move_score(m: Move, pos: &SearchPosition, pv: Move, killers: [Move; 2]) -> u8
 
     if killers.contains(&m) {
         return 12;
+    }
+
+    if m.flags == MoveFlag::QUIET {
+        let history_score = history[m.piece][m.to as usize];
+
+        if history_score > 1000 {
+            return 30;
+        }
     }
 
     255
