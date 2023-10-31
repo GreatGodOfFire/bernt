@@ -350,8 +350,6 @@ impl SearchContext<'_> {
             }
         }
 
-        let mut search_pv = true;
-
         for m in &self.order_moves(movegen::<true>(&pos.pos), &pos, tt_move, ply) {
             let pos = self.update(pos, *m, true);
 
@@ -366,7 +364,7 @@ impl SearchContext<'_> {
                 let res = if self.is_draw(&pos.pos) {
                     Some((Move::NULL, 0))
                 } else {
-                    if search_pv {
+                    if n_moves == 1 {
                         self.negamax(&pos, -beta, -alpha, ply + 1, depth - 1, is_nm)
                     } else {
                         let mut res =
@@ -384,7 +382,6 @@ impl SearchContext<'_> {
                 if let Some(res) = res {
                     if -res.1 > best.1 {
                         best = (*m, -res.1);
-                        search_pv = false;
                         if -res.1 >= beta {
                             if m.flags == MoveFlag::QUIET && self.killers[ply as usize][0] != *m {
                                 self.killers[ply as usize][1] = self.killers[ply as usize][0];
