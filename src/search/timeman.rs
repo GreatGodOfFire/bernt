@@ -4,7 +4,8 @@ use crate::{position::PieceColor, SearchOptions};
 
 pub struct TimeManager {
     pub start: Instant,
-    pub max: Option<Duration>,
+    pub hard: Option<Duration>,
+    pub soft: Option<Duration>,
 }
 
 impl TimeManager {
@@ -13,9 +14,9 @@ impl TimeManager {
             PieceColor::White => (options.wtime, options.winc),
             PieceColor::Black => (options.btime, options.binc),
         };
-        let max = {
+        let (hard, soft) = {
             if t == u64::MAX {
-                None
+                (None, None)
             } else {
                 let t = t as f32;
                 let inc = inc as f32;
@@ -23,22 +24,33 @@ impl TimeManager {
 
                 let max = (t - 25.0).max(0.0);
 
-                let x = max.min(inc * 3.0 / 4.0 + extra / 30 as f32);
+                let hard = max.min(inc * 3.0 / 4.0 + extra / 4.0);
+                let soft = max.min(inc * 3.0 / 4.0 + extra / 30.0);
 
-                Some(Duration::from_secs_f32(x / 1000.0))
+                (
+                    Some(Duration::from_secs_f32(hard / 1000.0)),
+                    Some(Duration::from_secs_f32(soft / 1000.0)),
+                )
             }
         };
 
         Self {
             start: Instant::now(),
-            max,
+            hard,
+            soft,
         }
     }
 
-    pub fn stop(&self) -> bool {
-        if self.max.is_none() {
+    pub fn hard_stop(&self) -> bool {
+        if self.hard.is_none() {
             return false;
         }
-        self.start.elapsed() > self.max.unwrap()
+        self.start.elapsed() > self.hard.unwrap()
+    }
+    pub fn soft_stop(&self) -> bool {
+        if self.soft.is_none() {
+            return false;
+        }
+        self.start.elapsed() > self.soft.unwrap()
     }
 }

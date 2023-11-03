@@ -71,7 +71,7 @@ pub fn search(
     };
 
     for depth in 1..=options.depth {
-        if context.timeman.stop() {
+        if context.timeman.soft_stop() {
             break;
         }
 
@@ -359,7 +359,7 @@ impl SearchContext<'_> {
                 n_moves += 1;
 
                 self.nodes += 1;
-                if self.nodes % 2048 == 0 && self.timeman.stop() && !(ply == 0 && depth == 1) {
+                if self.nodes % 2048 == 0 && self.timeman.hard_stop() && !(ply == 0 && depth == 1) {
                     return None;
                 }
 
