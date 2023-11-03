@@ -33,7 +33,7 @@ impl SearchContext<'_> {
     }
 }
 
-fn mvvlva(m: Move, pos: &SearchPosition) -> u8 {
+fn mvvlva(m: Move, pos: &SearchPosition) -> u32 {
     if m.capture() && m.flags != MoveFlag::EP {
         MVVLVA_LOOKUP[m.piece][pos.pos.piece_at(m.to).ty]
     } else {
@@ -42,7 +42,7 @@ fn mvvlva(m: Move, pos: &SearchPosition) -> u8 {
 }
 
 #[rustfmt::skip]
-pub const MVVLVA_LOOKUP: [[u8; 5]; 6] = [
+pub const MVVLVA_LOOKUP: [[u32; 5]; 6] = [
         /* P   N   B   R   Q */ 
 /* P */  [ 9, 11, 11, 13, 17],
 /* N */  [ 7,  9,  8, 11, 15],
@@ -58,7 +58,7 @@ fn move_score(
     pv: Move,
     killers: [Move; 2],
     history: &[[u32; 64]; 6],
-) -> u8 {
+) -> u32 {
     if m == pv {
         return 0;
     }
@@ -71,12 +71,8 @@ fn move_score(
     }
 
     if m.flags == MoveFlag::QUIET {
-        let history_score = history[m.piece][m.to as usize];
-
-        if history_score > 16384 {
-            return 30;
-        }
+        return history[m.piece][m.to as usize];
     }
 
-    255
+    u32::MAX
 }
