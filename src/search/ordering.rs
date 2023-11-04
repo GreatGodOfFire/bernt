@@ -1,6 +1,6 @@
 use crate::{
     movegen::MoveList,
-    position::{Move, MoveFlag},
+    position::{Move, MoveFlag, PieceType},
 };
 
 use super::{SearchContext, SearchPosition};
@@ -68,6 +68,10 @@ fn move_score(
 
     if killers.contains(&m) {
         return 12;
+    }
+
+    if m.promotion() != PieceType::None {
+        return 30;
     }
 
     if m.flags == MoveFlag::QUIET {
