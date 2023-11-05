@@ -246,8 +246,8 @@ impl SearchContext<'_> {
                 if update_hash {
                     hash ^= zobrist::PIECES[sq as usize][!side][Pawn];
                 }
-                mg += MG_PSTS[Pawn][flip(sq, side) as usize];
-                eg += EG_PSTS[Pawn][flip(sq, side) as usize];
+                mg += MG_PSTS[Pawn][flip(sq, !side) as usize];
+                eg += EG_PSTS[Pawn][flip(sq, !side) as usize];
                 phase -= PHASE[Pawn];
             }
             _ => {
@@ -293,7 +293,7 @@ impl SearchContext<'_> {
 
         return SearchPosition {
             pos: pos.pos.make_move(m),
-            eval: (-mg * phase + -eg * (24 - phase)) / 24,
+            eval: (-mg * phase.min(24) + -eg * (24 - phase.min(24))) / 24,
             mg_eval: -mg,
             eg_eval: -eg,
             phase,
