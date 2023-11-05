@@ -365,14 +365,24 @@ impl SearchContext<'_> {
                     return None;
                 }
 
+                let lmr_reduction =
+                    (0.77 + (depth as f32).ln() * (n_moves as f32).ln() / 2.27) as u8;
+
                 let res = if self.is_draw(&pos.pos) {
                     Some((Move::NULL, 0))
                 } else {
                     if search_pv {
                         self.negamax(&pos, -beta, -alpha, ply + 1, depth - 1, is_nm)
                     } else {
+                        let red = if !m.capture() && beta - alpha == 1 && n_moves >= 3 && depth > 1
+                        {
+                            lmr_reduction.clamp(1, depth - 1)
+                        } else {
+                            1
+                        };
+
                         let mut res =
-                            self.negamax(&pos, -best.1 - 1, -best.1, ply + 1, depth - 1, is_nm);
+                            self.negamax(&pos, -best.1 - 1, -best.1, ply + 1, depth - red, is_nm);
                         if let Some(r) = res {
                             if -r.1 > best.1 {
                                 res = self.negamax(&pos, -beta, -alpha, ply + 1, depth - 1, is_nm);
