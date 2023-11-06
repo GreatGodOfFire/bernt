@@ -2,6 +2,8 @@ use std::time::{Duration, Instant};
 
 use crate::{position::PieceColor, SearchOptions};
 
+use super::consts::{TIMEMAN_HARDDIV, TIMEMAN_SOFTDIV};
+
 pub struct TimeManager {
     pub start: Instant,
     pub hard: Option<Duration>,
@@ -24,8 +26,8 @@ impl TimeManager {
 
                 let max = (t - 25.0).max(0.0);
 
-                let hard = max.min(inc * 3.0 / 4.0 + extra / 4.0);
-                let soft = max.min(inc * 3.0 / 4.0 + extra / 30.0);
+                let hard = max.min(inc * 3.0 / 4.0 + extra / TIMEMAN_HARDDIV);
+                let soft = max.min(inc * 3.0 / 4.0 + extra / TIMEMAN_SOFTDIV);
 
                 (
                     Some(Duration::from_secs_f32(hard / 1000.0)),

@@ -1,3 +1,4 @@
+pub mod consts;
 mod eval;
 mod ordering;
 mod qsearch;
@@ -14,6 +15,7 @@ use crate::{
 };
 
 use self::{
+    consts::*,
     eval::eval,
     timeman::TimeManager,
     tt::{TTEntry, TTEntryType, TT},
@@ -77,11 +79,11 @@ pub fn search(
             break;
         }
 
-        let mut window_size = 50;
+        let mut window_size = ASP_WINDOW;
         let mut alpha = -INF;
         let mut beta = INF;
 
-        if depth >= 4 {
+        if depth >= ASP_DEPTH {
             alpha = best.1 - window_size;
             beta = best.1 + window_size;
         }
@@ -102,6 +104,8 @@ pub fn search(
                 best = b;
                 break;
             }
+
+            window_size += (window_size as f32 * ASP_INC_FACTOR) as i32;
         }
 
         let elapsed = instant.elapsed();
@@ -339,13 +343,14 @@ impl SearchContext<'_> {
         if beta - alpha == 1
             && !is_nm
             && !in_check
-            && depth >= 3
+            && depth >= NMP_REDUCTION
             && pos.eval >= beta
             && ply > 0
             && (pos.pos.pieces[PieceType::Pawn] & pos.pos.colors[pos.pos.side]).count_ones() > 0
         {
             let pos = self.update(pos, Move::NULL, true);
-            let (_, score) = self.negamax(&pos, -beta, -beta + 1, ply + 1, depth - 3, true)?;
+            let (_, score) =
+                self.negamax(&pos, -beta, -beta + 1, ply + 1, depth - NMP_REDUCTION, true)?;
             self.repetitions.pop();
             if -score >= beta {
                 return Some((Move::NULL, -score));
@@ -366,7 +371,7 @@ impl SearchContext<'_> {
                 }
 
                 let lmr_reduction =
-                    (0.77 + (depth as f32).ln() * (n_moves as f32).ln() / 2.27) as u8;
+                    (LMR_BASE + (depth as f32).ln() * (n_moves as f32).ln() / LMR_DIV) as u8;
 
                 let res = if self.is_draw(&pos.pos) {
                     Some((Move::NULL, 0))
