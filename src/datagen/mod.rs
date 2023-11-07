@@ -1,12 +1,13 @@
 use std::{
-    fmt,
+    env::args,
     fs::{self, OpenOptions},
-    io::{stdin, stdout, Write},
+    io::Write,
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc,
     },
     thread,
+    time::Duration,
 };
 
 use chrono::Local;
@@ -18,140 +19,134 @@ use crate::{
     search::{is_draw, search, tt::TT, CHECKMATE},
     SearchOptions,
 };
+use argh::{EarlyExit, FromArgs};
+use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 
-macro_rules! config {
-    ($($name:ident: $ty:ty = $value:literal),*) => {
-        #[derive(Clone, Debug)]
-        pub struct Config {
-            $( pub $name: $ty ),*
-        }
+#[derive(FromArgs, Debug)]
+/// Datagen config
+struct Config {
+    /// depth to search
+    #[argh(option, short = 'd')]
+    pub depth: u8,
 
-        impl Default for Config {
-            fn default() -> Self {
-                Self {
-                    $( $name: $value ),*
-                }
-            }
-        }
+    /// how many games to play
+    #[argh(option, short = 'g')]
+    pub games: u64,
 
-        impl Config {
-            pub fn set_option(&mut self, name: &str, value: &str) {
-                match name {
-                    $(
-                        stringify!($name) => {
-                            let Ok(value) = value.parse().map_err(|_| ()) else {
-                                eprintln!("Failed to parse {} as an {}", value, stringify!($ty));
-                                return;
-                            };
-                            self.$name = value;
-                        }
-                    ),*
-                    _ => eprintln!("Unknown option \"{name}\"")
-                }
-            }
-        }
-
-        impl fmt::Display for Config {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                $(
-                    writeln!(f, "- {}: {}", stringify!($name), self.$name)?;
-                )*
-
-                Ok(())
-            }
-        }
-    };
-}
-
-config! {
-    num_games: u64 = 100,
-    num_threads: u8 = 1,
-    depth: u8 = 5,
-    dfrc: bool = false
+    /// how many threads to spawn
+    #[argh(option, short = 't')]
+    pub threads: u8,
 }
 
 pub fn datagen() {
-    let mut config = Config::default();
-
-    println!("Current datagen configuration:");
-    println!("{config}");
-
-    loop {
-        let prompt = prompt();
-        let line: Vec<&str> = prompt.split_whitespace().collect();
-        if let Some(cmd) = line.get(0) {
-            match *cmd {
-                "start" | "go" => {
-                    let games_per_t = config.num_games / config.num_threads as u64;
-                    let remainder = config.num_games - games_per_t * config.num_threads as u64;
-
-                    let time = Local::now();
-                    let folder = format!(
-                        "data/{}-{}g/",
-                        time.format("%Y-%m-%d_%H:%M:%S"),
-                        config.num_games
-                    );
-                    fs::create_dir_all(&folder).unwrap();
-
-                    let mut handles = vec![];
-                    let n_games = Arc::new(AtomicU64::new(0));
-
-                    for id in 0..config.num_threads {
-                        let mut n = games_per_t;
-                        if id == 0 {
-                            n += remainder;
-                        }
-
-                        let folder = folder.clone();
-                        let n_games = n_games.clone();
-
-                        handles.push(thread::spawn(move || {
-                            generate_games(id, n, folder, config.depth, n_games)
-                        }));
-                    }
-
-                    for handle in handles {
-                        handle.join().unwrap();
-                    }
-
-                    return;
-                }
-                "set" => {
-                    if line.len() < 3 {
-                        eprintln!("Usage: set <name> <value>");
-                    }
-
-                    config.set_option(line[1], line[2]);
-                    println!("Updated config:");
-                    println!("{config}");
-                }
-                "quit" | "stop" => return,
-                _ => eprintln!("Unknown command \"{cmd}\""),
-            }
+    let config = match Config::from_args(
+        &["datagen"],
+        &args()
+            .collect::<Vec<_>>()
+            .iter()
+            .map(AsRef::as_ref)
+            .collect::<Vec<_>>()[2..],
+    ) {
+        Ok(c) => c,
+        Err(EarlyExit { output, .. }) => {
+            eprintln!("{output}");
+            return;
         }
+    };
+
+    println!(
+        "Generating {} games with depth {} on {} thread(s)",
+        config.games, config.depth, config.threads
+    );
+
+    let games_per_t = config.games / config.threads as u64;
+    let remainder = config.games - games_per_t * config.threads as u64;
+
+    let time = Local::now();
+    let folder = format!(
+        "data/{}-{}g/",
+        time.format("%Y-%m-%d_%H:%M:%S"),
+        config.games
+    );
+    fs::create_dir_all(&folder).unwrap();
+
+    let mut handles = vec![];
+    let n_games = Arc::new(AtomicU64::new(0));
+    let n_pos = Arc::new(AtomicU64::new(0));
+
+    for id in 0..config.threads {
+        let mut n = games_per_t;
+        if id == 0 {
+            n += remainder;
+        }
+
+        let folder = folder.clone();
+        let n_games = n_games.clone();
+        let n_pos = n_pos.clone();
+
+        handles.push(thread::spawn(move || {
+            generate_games(id, n, folder, config.depth, n_games, n_pos)
+        }));
     }
+
+    handles.push(thread::spawn(move || {
+        let pb = ProgressBar::new(config.games);
+        pb.set_style(
+            ProgressStyle::with_template(
+                &format!("[{{elapsed_precise}}] [{{wide_bar:.cyan}}] {{pos:>{0}}}/{{len:>{0}}} games [{{eta}} at {{per_sec}}]", config.games.ilog10()+1),
+            )
+            .unwrap()
+            .with_key(
+                "per_sec",
+                move |state: &ProgressState, w: &mut dyn std::fmt::Write| {
+                    write!(w, "{:.3} games/s", state.per_sec()).unwrap()
+                },
+            )
+            .with_key(
+                "npos",
+                move |_: &ProgressState, w: &mut dyn std::fmt::Write| {
+                    write!(w, "{}", n_pos.load(Ordering::SeqCst) as f64).unwrap()
+                },
+            )
+            .progress_chars("=>-"),
+        );
+
+        let mut n = 0;
+
+        while n < config.games {
+            n = n_games.load(Ordering::SeqCst);
+            pb.set_position(n);
+            thread::sleep(Duration::from_millis(12));
+        }
+
+        pb.finish();
+    }));
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    return;
 }
 
-fn prompt() -> String {
-    print!(">>> ");
-    stdout().flush().unwrap();
-
-    let mut line = String::new();
-    stdin().read_line(&mut line).unwrap();
-
-    line
-}
-
-pub fn generate_games(id: u8, num_games: u64, folder: String, depth: u8, n_games: Arc<AtomicU64>) {
+fn generate_games(
+    id: u8,
+    games: u64,
+    folder: String,
+    depth: u8,
+    n_games: Arc<AtomicU64>,
+    n_pos: Arc<AtomicU64>,
+) {
     let mut file = OpenOptions::new()
         .create_new(true)
         .write(true)
         .open(format!("{folder}/thread{id}.bin"))
         .unwrap();
 
-    for _ in 0..num_games {
+    for _ in 0..games {
         let positions = game(depth);
         file.write_all(bytemuck::cast_slice(&positions)).unwrap();
+        n_pos.fetch_add(positions.len() as u64, Ordering::SeqCst);
         let n = n_games.fetch_add(1, Ordering::SeqCst) + 1;
         if n % 100 == 0 {
             println!("Finished {n} games.");

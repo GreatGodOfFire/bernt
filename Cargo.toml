@@ -5,10 +5,15 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+datagen = ["argh", "bytemuck", "chrono","fastrand", "indicatif"]
+
 [dependencies]
-bytemuck = "1.14.0"
-chrono = "0.4.31"
-fastrand = "2.0.1"
+bytemuck = { "1.14.0", optional = true }
+chrono = { "0.4.31", optional = true }
+fastrand = { "2.0.1", optional = true }
+indicatif = { version = "0.17.7", optional = true }
+argh = { version = "0.1.12", optional = true }
 
 [profile.release]
 lto = "fat"

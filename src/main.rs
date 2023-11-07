@@ -1,5 +1,6 @@
 pub mod bench;
 pub mod bitboard;
+#[cfg(feature = "datagen")]
 pub mod datagen;
 pub mod marlinformat;
 pub mod movegen;
@@ -12,7 +13,6 @@ use std::{env, io::stdin, time::Instant};
 
 use crate::{
     bench::bench,
-    datagen::datagen,
     movegen::movegen,
     perft::split_perft,
     position::Position,
@@ -22,10 +22,11 @@ use crate::{
 fn main() {
     let args: Vec<_> = env::args().collect();
 
-    if args.len() == 2 {
+    if args.len() >= 2 {
         match args[1].as_str() {
             "bench" => bench(),
-            "datagen" => datagen(),
+            #[cfg(feature = "datagen")]
+            "datagen" => datagen::datagen(),
             _ => {}
         }
         return;
