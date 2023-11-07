@@ -3,6 +3,9 @@ pub const ASP_WINDOW: i32 = 50;
 pub const ASP_INC_FACTOR: f32 = 1.0;
 pub const NMP_REDUCTION: u8 = 3;
 
+pub const RFP_DEPTH: u8 = 4;
+pub const RFP_MARGIN: i32 = 50;
+
 pub const LMR_BASE: f32 = 0.77;
 pub const LMR_DIV: f32 = 2.27;
 

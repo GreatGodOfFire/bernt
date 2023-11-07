@@ -317,6 +317,8 @@ impl SearchContext<'_> {
         mut depth: u8,
         is_nm: bool,
     ) -> Option<(Move, i32)> {
+        let pv_node = beta - alpha != 1;
+
         let in_check = pos.pos.in_check(pos.pos.side);
         if in_check && depth < 3 {
             depth += 1;
@@ -355,6 +357,14 @@ impl SearchContext<'_> {
             if -score >= beta {
                 return Some((Move::NULL, -score));
             }
+        }
+
+        if !pv_node
+            && !in_check
+            && depth <= RFP_DEPTH
+            && pos.eval - RFP_MARGIN * depth as i32 > beta
+        {
+            return Some((Move::NULL, pos.eval));
         }
 
         let mut search_pv = true;
