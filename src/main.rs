@@ -2,7 +2,6 @@ pub mod bench;
 pub mod bitboard;
 #[cfg(feature = "datagen")]
 pub mod datagen;
-pub mod marlinformat;
 pub mod movegen;
 pub mod perft;
 pub mod position;

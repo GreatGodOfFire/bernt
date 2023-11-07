@@ -1,3 +1,5 @@
+mod marlinformat;
+
 use std::{
     env::args,
     fs::{self, OpenOptions},
@@ -13,7 +15,6 @@ use std::{
 use chrono::Local;
 
 use crate::{
-    marlinformat::PackedBoard,
     movegen::movegen,
     position::{Move, PieceColor, PieceType, Position},
     search::{is_draw, search, tt::TT, CHECKMATE},
@@ -21,6 +22,7 @@ use crate::{
 };
 use argh::{EarlyExit, FromArgs};
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
+use marlinformat::PackedBoard;
 
 #[derive(FromArgs, Debug)]
 /// Datagen config
@@ -72,7 +74,6 @@ pub fn datagen() {
 
     let mut handles = vec![];
     let n_games = Arc::new(AtomicU64::new(0));
-    let n_pos = Arc::new(AtomicU64::new(0));
 
     for id in 0..config.threads {
         let mut n = games_per_t;
@@ -82,10 +83,9 @@ pub fn datagen() {
 
         let folder = folder.clone();
         let n_games = n_games.clone();
-        let n_pos = n_pos.clone();
 
         handles.push(thread::spawn(move || {
-            generate_games(id, n, folder, config.depth, n_games, n_pos)
+            generate_games(id, n, folder, config.depth, n_games)
         }));
     }
 
@@ -100,12 +100,6 @@ pub fn datagen() {
                 "per_sec",
                 move |state: &ProgressState, w: &mut dyn std::fmt::Write| {
                     write!(w, "{:.3} games/s", state.per_sec()).unwrap()
-                },
-            )
-            .with_key(
-                "npos",
-                move |_: &ProgressState, w: &mut dyn std::fmt::Write| {
-                    write!(w, "{}", n_pos.load(Ordering::SeqCst) as f64).unwrap()
                 },
             )
             .progress_chars("=>-"),
@@ -129,14 +123,7 @@ pub fn datagen() {
     return;
 }
 
-fn generate_games(
-    id: u8,
-    games: u64,
-    folder: String,
-    depth: u8,
-    n_games: Arc<AtomicU64>,
-    n_pos: Arc<AtomicU64>,
-) {
+fn generate_games(id: u8, games: u64, folder: String, depth: u8, n_games: Arc<AtomicU64>) {
     let mut file = OpenOptions::new()
         .create_new(true)
         .write(true)
@@ -146,11 +133,7 @@ fn generate_games(
     for _ in 0..games {
         let positions = game(depth);
         file.write_all(bytemuck::cast_slice(&positions)).unwrap();
-        n_pos.fetch_add(positions.len() as u64, Ordering::SeqCst);
-        let n = n_games.fetch_add(1, Ordering::SeqCst) + 1;
-        if n % 100 == 0 {
-            println!("Finished {n} games.");
-        }
+        n_games.fetch_add(1, Ordering::SeqCst);
     }
 }
 
