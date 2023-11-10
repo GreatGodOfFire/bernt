@@ -158,6 +158,21 @@ fn game(depth: u8) -> Vec<PackedBoard> {
         return game(depth);
     }
 
+    // prevent positions with mate
+    let mut moves = movegen::<true>(&pos);
+    let mut mate = true;
+    for m in &moves {
+        let p = pos.make_move(*m);
+        if !p.in_check(!p.side) {
+            mate = false;
+            break;
+        }
+    }
+
+    if mate {
+        return game(depth);
+    }
+
     let mut options = SearchOptions::default();
     options.depth = depth;
     options.info = false;
