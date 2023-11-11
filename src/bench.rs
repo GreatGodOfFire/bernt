@@ -72,7 +72,13 @@ pub fn bench() {
         tt.clear();
         let pos = Position::from_fen(fen);
 
-        let res = search(&pos, options.clone(), vec![pos.hash()], &mut tt);
+        let res = search(
+            &pos,
+            options.clone(),
+            Default::default(),
+            vec![pos.hash()],
+            &mut tt,
+        );
         nodes += res.nodes;
         elapsed += res.elapsed;
         println!(

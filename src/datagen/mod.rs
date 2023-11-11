@@ -179,7 +179,13 @@ fn game(depth: u8) -> Vec<PackedBoard> {
 
     let mut tt = TT::new_default();
 
-    let mut res = search(&pos, options.clone(), reps.clone(), &mut tt);
+    let mut res = search(
+        &pos,
+        options.clone(),
+        Default::default(),
+        reps.clone(),
+        &mut tt,
+    );
 
     if res.score > 1000 {
         return game(depth);
@@ -192,7 +198,13 @@ fn game(depth: u8) -> Vec<PackedBoard> {
         pos = pos.make_move(res.best);
         reps.push(pos.hash());
 
-        res = search(&pos, options.clone(), reps.clone(), &mut tt);
+        res = search(
+            &pos,
+            options.clone(),
+            Default::default(),
+            reps.clone(),
+            &mut tt,
+        );
 
         if res.score.abs() >= CHECKMATE {
             if (res.score.signum() == 1 && pos.side == PieceColor::White)

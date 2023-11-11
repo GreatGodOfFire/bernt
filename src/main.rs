@@ -10,6 +10,8 @@ pub mod zobrist;
 
 use std::{env, io::stdin, time::Instant};
 
+use search::consts::SearchConsts;
+
 use crate::{
     bench::bench,
     movegen::movegen,
@@ -21,11 +23,15 @@ use crate::{
 fn main() {
     let args: Vec<_> = env::args().collect();
 
+    let mut consts = SearchConsts::default();
+
     if args.len() >= 2 {
         match args[1].as_str() {
             "bench" => bench(),
             #[cfg(feature = "datagen")]
-            "datagen" => datagen::datagen(),
+            "datagen" => datagen(),
+            "spsainput" => consts.print_spsa(),
+            "cttinput" => consts.print_ctt(),
             _ => {}
         }
         return;
@@ -56,6 +62,9 @@ fn main() {
                 println!("option name Hash type spin default 16 min 1 max 262144");
                 // For OpenBench
                 println!("option name Threads type spin default 1 min 1 max 1");
+
+                consts.print_uci();
+
                 println!("uciok");
             }
             "setoption" => {
@@ -63,6 +72,13 @@ fn main() {
                     match option {
                         UciOption::Hash(mb) => tt.set_size(mb),
                         UciOption::Threads(_) => {}
+                        UciOption::Unknown(n, _v) => {
+                            if consts.set(&n, &_v).is_ok() {
+                                continue;
+                            }
+
+                            eprintln!("Unknown UCI option \"{n}\"");
+                        }
                     }
                 }
             }
@@ -156,7 +172,7 @@ fn main() {
 
                 println!(
                     "bestmove {}",
-                    search(&pos, options, repetitions.clone(), &mut tt).best
+                    search(&pos, options, consts.clone(), repetitions.clone(), &mut tt).best
                 );
             }
             _ => {}
@@ -192,6 +208,7 @@ impl Default for SearchOptions {
 enum UciOption {
     Hash(usize),
     Threads(u8),
+    Unknown(String, String),
 }
 
 fn parse_setoption(args: &[&str]) -> Option<UciOption> {
@@ -207,20 +224,11 @@ fn parse_setoption(args: &[&str]) -> Option<UciOption> {
         return None;
     }
 
-    let mut option;
-
-    match args[1] {
-        "Hash" => {
-            option = Hash(0);
-        }
-        "Threads" => {
-            option = Threads(0);
-        }
-        o => {
-            eprintln!("unknown uci option {o}");
-            return None;
-        }
-    }
+    let mut option = match args[1] {
+        "Hash" => Hash(0),
+        "Threads" => Threads(0),
+        n => Unknown(n.to_string(), String::new()),
+    };
 
     if args.len() == 2 || args[2] != "value" {
         eprintln!("no \"value\" after name");
@@ -237,10 +245,16 @@ fn parse_setoption(args: &[&str]) -> Option<UciOption> {
             option = match option {
                 Hash(_) => Hash(value),
                 Threads(_) => Threads(value as u8),
+                _ => unreachable!(),
             };
         } else {
             eprintln!("unable to parse {} as a number", args[3]);
         }
+    } else {
+        option = match option {
+            Unknown(n, _) => Unknown(n, args[3].to_string()),
+            _ => unreachable!(),
+        };
     }
 
     Some(option)

@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use crate::{position::PieceColor, SearchOptions};
 
-use super::consts::{TIMEMAN_HARDDIV, TIMEMAN_SOFTDIV};
+use super::consts::SearchConsts;
 
 pub struct TimeManager {
     pub start: Instant,
@@ -11,7 +11,7 @@ pub struct TimeManager {
 }
 
 impl TimeManager {
-    pub fn new(options: &SearchOptions, color: PieceColor) -> Self {
+    pub fn new(options: &SearchOptions, consts: &SearchConsts, color: PieceColor) -> Self {
         let (t, inc) = match color {
             PieceColor::White => (options.wtime, options.winc),
             PieceColor::Black => (options.btime, options.binc),
@@ -22,18 +22,16 @@ impl TimeManager {
             } else {
                 let t = t as f32;
                 let inc = inc as f32;
-                let extra = (t - inc).max(0.0);
 
                 let max = (t - 25.0).max(0.0);
 
-                let hard = max.min(inc * 3.0 / 4.0 + extra / TIMEMAN_HARDDIV);
+                let hard = max.min(inc * 3.0 / 4.0 + t / consts.time_harddiv);
                 let soft = max.min(
                     inc * 3.0 / 4.0
-                        + extra
-                            / options
-                                .movestogo
-                                .map(|x| x as f32)
-                                .unwrap_or(TIMEMAN_SOFTDIV),
+                        + t / options
+                            .movestogo
+                            .map(|x| x as f32)
+                            .unwrap_or(consts.time_softdiv),
                 );
 
                 (

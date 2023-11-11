@@ -31,6 +31,7 @@ struct SearchContext<'a> {
     continuations: [[[[[[i32; 64]; 6]; 64]; 6]; 2]; 2],
     move_stack: [Move; 256],
     tt_age: u16,
+    consts: SearchConsts,
 }
 
 struct SearchPosition {
@@ -51,13 +52,14 @@ pub struct SearchResult {
 pub fn search(
     pos: &Position,
     options: SearchOptions,
+    consts: SearchConsts,
     repetitions: Vec<u64>,
     tt: &mut TT,
 ) -> SearchResult {
     let instant = Instant::now();
 
     let mut context = SearchContext {
-        timeman: TimeManager::new(&options, pos.side),
+        timeman: TimeManager::new(&options, &consts, pos.side),
         nodes: 0,
         repetitions,
         tt,
@@ -66,6 +68,7 @@ pub fn search(
         continuations: [[[[[[0; 64]; 6]; 64]; 6]; 2]; 2],
         move_stack: [Move::NULL; 256],
         tt_age: pos.age,
+        consts,
     };
 
     let mut best = (Move::NULL, -INF);
@@ -85,11 +88,11 @@ pub fn search(
             break;
         }
 
-        let mut window_size = ASP_WINDOW;
+        let mut window_size = context.consts.asp_window;
         let mut alpha = -INF;
         let mut beta = INF;
 
-        if depth >= ASP_DEPTH {
+        if depth >= context.consts.asp_depth {
             alpha = best.1 - window_size;
             beta = best.1 + window_size;
         }
@@ -111,7 +114,7 @@ pub fn search(
                 break;
             }
 
-            window_size += (window_size as f32 * ASP_INC_FACTOR) as i32;
+            window_size += (window_size as f32 * context.consts.asp_inc_factor) as i32;
         }
 
         let elapsed = instant.elapsed();
@@ -351,15 +354,21 @@ impl SearchContext<'_> {
         if beta - alpha == 1
             && !is_nm
             && !in_check
-            && depth >= NMP_REDUCTION
+            && depth >= self.consts.nmp_reduction
             && pos.eval >= beta
             && ply > 0
             && (pos.pos.pieces[PieceType::Pawn] & pos.pos.colors[pos.pos.side]).count_ones() > 0
         {
             let pos = self.update(pos, Move::NULL, true);
             self.move_stack[ply as usize] = Move::NULL;
-            let (_, score) =
-                self.negamax(&pos, -beta, -beta + 1, ply + 1, depth - NMP_REDUCTION, true)?;
+            let (_, score) = self.negamax(
+                &pos,
+                -beta,
+                -beta + 1,
+                ply + 1,
+                depth - self.consts.nmp_reduction,
+                true,
+            )?;
             self.repetitions.pop();
             if -score >= beta {
                 return Some((Move::NULL, -score));
@@ -368,8 +377,8 @@ impl SearchContext<'_> {
 
         if !pv_node
             && !in_check
-            && depth <= RFP_DEPTH
-            && pos.eval - RFP_MARGIN * depth as i32 > beta
+            && depth <= self.consts.rfp_depth
+            && pos.eval - self.consts.rfp_margin * depth as i32 > beta
         {
             return Some((Move::NULL, pos.eval));
         }
@@ -398,13 +407,14 @@ impl SearchContext<'_> {
                     return None;
                 }
 
-                let lmr_reduction =
-                    (LMR_BASE + (depth as f32).ln() * (n_moves as f32).ln() / LMR_DIV) as u8;
+                let lmr_reduction = (self.consts.lmr_base
+                    + (depth as f32).ln() * (n_moves as f32).ln() / self.consts.lmr_div)
+                    as u8;
 
                 if !m.capture()
                     && m.promotion() == PieceType::None
-                    && depth <= FP_DEPTH
-                    && pos.eval + FP_BASE + FP_MUL * depth as i32 <= alpha
+                    && depth <= self.consts.fp_depth
+                    && pos.eval + self.consts.fp_base + self.consts.fp_mul * depth as i32 <= alpha
                     && best.1 > -CHECKMATE
                 {
                     skip_quiets = true;
@@ -413,8 +423,10 @@ impl SearchContext<'_> {
                 if best.1 > -CHECKMATE
                     && !pv_node
                     && !in_check
-                    && depth <= LMP_DEPTH
-                    && n_moves >= LMP_BASE + LMP_MUL * (depth as u16).pow(LMP_POW)
+                    && depth <= self.consts.lmp_depth
+                    && n_moves
+                        >= self.consts.lmp_base
+                            + self.consts.lmp_mul * (depth as u16).pow(self.consts.lmp_pow)
                 {
                     skip_quiets = true;
                 }
@@ -428,7 +440,7 @@ impl SearchContext<'_> {
                     } else {
                         let red = if !m.capture()
                             && beta - alpha == 1
-                            && n_moves >= LMR_NMOVES
+                            && n_moves >= self.consts.lmr_n_moves
                             && depth > 1
                         {
                             lmr_reduction.clamp(1, depth - 1)
@@ -461,20 +473,22 @@ impl SearchContext<'_> {
                                 self.killers[ply as usize][1] = self.killers[ply as usize][0];
                                 self.killers[ply as usize][0] = m;
                                 self.history[!pos.pos.side][m.piece][m.to as usize] +=
-                                    depth as i32 * HIST_MUL + HIST_ADD;
+                                    depth as i32 * self.consts.hist_mul + self.consts.hist_add;
                                 if ply > 0 {
                                     let prev_move = self.move_stack[ply as usize - 1];
                                     self.continuations[0][!pos.pos.side][m.piece][m.to as usize]
                                         [prev_move.piece]
-                                        [prev_move.to as usize] +=
-                                        depth as i32 * CONTHIST_MUL + CONTHIST_ADD;
+                                        [prev_move.to as usize] += depth as i32
+                                        * self.consts.conthist_mul
+                                        + self.consts.conthist_add;
                                 }
                                 if ply > 1 {
                                     let prev_move = self.move_stack[ply as usize - 2];
                                     self.continuations[1][!pos.pos.side][m.piece][m.to as usize]
                                         [prev_move.piece]
-                                        [prev_move.to as usize] +=
-                                        depth as i32 * CONTHIST_MUL + CONTHIST_ADD;
+                                        [prev_move.to as usize] += depth as i32
+                                        * self.consts.conthist_mul
+                                        + self.consts.conthist_add;
                                 }
                             }
                             self.repetitions.pop();
