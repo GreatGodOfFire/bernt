@@ -1,6 +1,8 @@
+use std::mem;
+
 use crate::position::Move;
 
-pub struct TT(Vec<TTEntry>, usize);
+pub struct TT(Vec<TTEntry>, usize, usize);
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub struct TTEntry {
@@ -13,13 +15,22 @@ pub struct TTEntry {
 }
 
 impl TT {
+    pub fn new(size: usize) -> Self {
+        Self(vec![TTEntry::default(); tt_size(size)], 0, size)
+    }
+
     pub fn new_default() -> Self {
-        Self(vec![TTEntry::default(); tt_size(16)], 0)
+        Self::new(16)
     }
 
     pub fn set_size(&mut self, size: usize) {
         self.0 = vec![TTEntry::default(); tt_size(size)];
         self.1 = 0;
+        self.2 = size;
+    }
+
+    pub fn size(&self) -> usize {
+        self.2
     }
 
     pub fn clear(&mut self) {
@@ -58,7 +69,7 @@ fn score(age: u8, depth: u8) -> u16 {
 }
 
 fn tt_size(size: usize) -> usize {
-    size * 1000000 / std::mem::size_of::<TTEntry>()
+    size * 1000000 / mem::size_of::<TTEntry>()
 }
 
 impl TTEntry {

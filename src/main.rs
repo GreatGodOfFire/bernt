@@ -68,7 +68,7 @@ fn main() {
             }
             "ucinewgame" => {
                 pos = Position::startpos();
-                tt = TT::new_default();
+                tt = TT::new(tt.size());
             }
             "perft" => {
                 let depth = args[1].parse().unwrap();
