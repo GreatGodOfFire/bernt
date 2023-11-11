@@ -15,7 +15,7 @@ use crate::{
     movegen::movegen,
     perft::split_perft,
     position::Position,
-    search::{search, tt::TT},
+    search::{eval::eval, search, tt::TT},
 };
 
 fn main() {
@@ -132,6 +132,9 @@ fn main() {
                         }
                     }
                 }
+            }
+            "eval" => {
+                println!("Evaluation: {}", eval(&pos).0);
             }
             "go" => {
                 let mut iter = args[1..].iter();

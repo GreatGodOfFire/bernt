@@ -1,5 +1,5 @@
 pub mod consts;
-mod eval;
+pub mod eval;
 mod ordering;
 mod qsearch;
 mod timeman;
