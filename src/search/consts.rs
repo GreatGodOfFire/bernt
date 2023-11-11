@@ -1,22 +1,125 @@
-pub const ASP_DEPTH: u8 = 3;
-pub const ASP_WINDOW: i32 = 95;
-pub const ASP_INC_FACTOR: f32 = 1.0;
+trait PrintableConst {
+    fn spsa(&self, name: &str, min: Self, max: Self);
+    fn ctt(&self, name: &str, min: Self, max: Self);
+    fn uci(&self, name: &str, min: Self, max: Self);
+}
 
-pub const NMP_REDUCTION: u8 = 3;
+macro_rules! impl_print {
+    ($($int:ident),*; $($float:ident),*) => {
+        $(
+            impl PrintableConst for $int {
+                fn spsa(&self, name: &str, min: Self, max: Self) {
+                    println!(
+                        "{name}, int, {self}, {min}, {max}, {}, 0.002",
+                        (*self as f32 / 10.0).max(0.5)
+                    );
+                }
 
-pub const LMR_BASE: f32 = 1.66;
-pub const LMR_DIV: f32 = 3.41;
-pub const LMR_NMOVES: u8 = 5;
+                fn ctt(&self, name: &str, min: Self, max: Self) {
+                    println!(
+                        r#"    "{name}": "Integer({min}, {max})","#,
+                    );
+                }
 
-pub const RFP_DEPTH: u8 = 2;
-pub const RFP_MARGIN: i32 = 101;
+                fn uci(&self, name: &str, min: Self, max: Self) {
+                    println!("option name {name} type spin default {self} min {min} max {max}");
+                }
+            }
+        )*
+        $(
+            impl PrintableConst for $float {
+                fn spsa(&self, name: &str, min: Self, max: Self) {
+                    println!(
+                        "{name}, float, {self}, {min}, {max}, {}, 0.002",
+                        (*self as f32 / 10.0).max(0.5)
+                    );
+                }
 
-pub const FP_DEPTH: u8 = 5;
-pub const FP_BASE: i32 = 160;
-pub const FP_MUL: i32 = 80;
+                fn ctt(&self, name: &str, min: Self, max: Self) {
+                    println!(
+                        r#"    "{name}": "Real({min}, {max})","#,
+                    );
+                }
 
-pub const TIMEMAN_HARDDIV: f32 = 4.0;
-pub const TIMEMAN_SOFTDIV: f32 = 30.0;
+                fn uci(&self, name: &str, _: Self, _: Self) {
+                    println!("option name {name} type string default {self}");
+                }
+            }
+        )*
+    }
+}
+
+impl_print! {
+    u8, u16, u32, u64, i8, i16, i32, i64;
+    f32, f64
+}
+
+macro_rules! consts {
+    ($(const $name:ident($min:literal..=$max:literal): $ty:ty = $default:literal),*) => {
+        #[derive(Clone)]
+        pub struct SearchConsts {
+            $(
+                pub $name: $ty
+            ),*
+        }
+        impl Default for SearchConsts {
+            fn default() -> Self {
+                Self {
+                    $($name: $default),*
+                }
+            }
+        }
+        impl SearchConsts {
+            pub fn set(&mut self, name: &str, value: &str) -> Result<(), ()> {
+                match name {
+                    $(stringify!($name) => self.$name = value.parse::<$ty>().unwrap().clamp($min, $max),)*
+                    _ => return Err(()),
+                }
+
+                Ok(())
+            }
+
+            pub fn print_spsa(&self) {
+                $(
+                    self.$name.spsa(stringify!($name), $min, $max);
+                )*
+            }
+            pub fn print_ctt(&self) {
+                $(
+                    self.$name.ctt(stringify!($name), $min, $max);
+                )*
+            }
+            pub fn print_uci(&self) {
+                $(
+                    self.$name.uci(stringify!($name), $min, $max);
+                )*
+            }
+        }
+    };
+}
+
+consts! {
+    const asp_depth(1..=6): u8 = 3,
+    const asp_window(5..=200): i32 = 95,
+    const asp_inc_factor(0.1..=2.5): f32 = 1.0,
+
+    const nmp_reduction(2..=5): u8 = 3,
+
+    const lmr_base(0.5..=1.5): f32 = 1.66,
+    const lmr_div(1.0..=5.0): f32 = 3.41,
+    const lmr_n_moves(1..=5): u8 = 5,
+
+    const rfp_depth(1..=6): u8 = 2,
+    const rfp_margin(10..=300): i32 = 101,
+
+    const fp_depth(1..=20): u8 = 5,
+    const fp_base(10..=500): i32 = 160,
+    const fp_mul(10..=500): i32 = 80,
+    const fp_pow(1..=2): u32 = 2,
+
+    const time_harddiv(1.5..=8.0): f32 = 4.0,
+    const time_softdiv(20.0..=40.0): f32 = 30.0
+}
 
 #[rustfmt::skip]
 pub const MVVLVA_LOOKUP: [[u32; 5]; 6] = [
