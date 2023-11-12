@@ -6,30 +6,67 @@ use crate::{
 use super::{SearchContext, SearchPosition};
 
 impl SearchContext<'_> {
-    pub(super) fn order_moves(
-        &self,
-        mut moves: MoveList,
-        pos: &SearchPosition,
-        pv: Move,
-        plies: u8,
-    ) -> MoveList {
-        moves.moves[..moves.len as usize].sort_unstable_by_key(|x| {
-            move_score(
-                *x,
-                pos,
-                pv,
-                self.killers[plies as usize],
-                &self.history[pos.pos.side],
-            )
-        });
-
-        moves
-    }
-
     pub(super) fn order_mvvlva(&self, mut moves: MoveList, pos: &SearchPosition) -> MoveList {
         moves.moves[..moves.len as usize].sort_unstable_by_key(|x| 255 - mvvlva(*x, pos));
 
         moves
+    }
+}
+
+pub struct MovePicker {
+    moves: MoveList,
+    scores: Vec<u32>,
+}
+
+impl MovePicker {
+    pub(super) fn new(
+        moves: MoveList,
+        pos: &SearchPosition,
+        tt_move: Move,
+        killers: &[Move; 2],
+        history: &[[u32; 64]; 6],
+    ) -> Self {
+        let mut scores = vec![];
+
+        for m in &moves {
+            scores.push(move_score(*m, pos, tt_move, killers, history))
+        }
+
+        Self {
+            scores,
+            moves,
+        }
+    }
+}
+
+impl Iterator for MovePicker {
+    type Item = Move;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.moves.len == 0 {
+            return None;
+        }
+
+        let mut best = u32::MAX;
+        let mut idx = 0;
+
+        for (i, &score) in self.scores
+            .iter()
+            .enumerate()
+        {
+            if score < best {
+                idx = i;
+                best = score;
+            }
+        }
+
+        self.moves.len -= 1;
+        let len = self.moves.len as usize;
+        self.scores.swap(idx, len);
+        self.moves.moves.swap(idx, len);
+        self.scores.pop();
+
+        Some(self.moves.moves[len])
     }
 }
 
@@ -56,7 +93,7 @@ fn move_score(
     m: Move,
     pos: &SearchPosition,
     pv: Move,
-    killers: [Move; 2],
+    killers: &[Move; 2],
     history: &[[u32; 64]; 6],
 ) -> u32 {
     if m == pv {

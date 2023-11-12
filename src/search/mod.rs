@@ -17,6 +17,7 @@ use crate::{
 use self::{
     consts::*,
     eval::eval,
+    ordering::MovePicker,
     timeman::TimeManager,
     tt::{TTEntry, TTEntryType, TT},
 };
@@ -371,8 +372,14 @@ impl SearchContext<'_> {
 
         let mut search_pv = true;
 
-        for m in &self.order_moves(movegen::<true>(&pos.pos), &pos, tt_move, ply) {
-            let pos = self.update(pos, *m, true);
+        for m in MovePicker::new(
+            movegen::<true>(&pos.pos),
+            &pos,
+            tt_move,
+            &self.killers[ply as usize],
+            &self.history[pos.pos.side],
+        ) {
+            let pos = self.update(pos, m, true);
 
             if !pos.pos.in_check(!pos.pos.side) {
                 n_moves += 1;
@@ -412,17 +419,17 @@ impl SearchContext<'_> {
 
                 if let Some(res) = res {
                     if -res.1 > best.1 {
-                        best = (*m, -res.1);
+                        best = (m, -res.1);
                         search_pv = false;
                         if -res.1 >= beta {
-                            if m.flags == MoveFlag::QUIET && self.killers[ply as usize][0] != *m {
+                            if m.flags == MoveFlag::QUIET && self.killers[ply as usize][0] != m {
                                 self.killers[ply as usize][1] = self.killers[ply as usize][0];
-                                self.killers[ply as usize][0] = *m;
+                                self.killers[ply as usize][0] = m;
                                 self.history[!pos.pos.side][m.piece][m.to as usize] -=
                                     depth as u32 * depth as u32;
                             }
                             self.repetitions.pop();
-                            return Some((*m, -res.1));
+                            return Some((m, -res.1));
                         }
                     }
                 } else {
