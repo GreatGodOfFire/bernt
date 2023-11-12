@@ -28,6 +28,7 @@ struct SearchContext<'a> {
     tt: &'a mut TT,
     killers: [[Move; 2]; 256],
     history: [[[u32; 64]; 6]; 2],
+    tt_age: u16,
 }
 
 struct SearchPosition {
@@ -60,6 +61,7 @@ pub fn search(
         tt,
         killers: [[Move::NULL; 2]; 256],
         history: [[[u32::MAX; 64]; 6]; 2],
+        tt_age: pos.age,
     };
 
     let mut best = (Move::NULL, -INF);
@@ -449,8 +451,14 @@ impl SearchContext<'_> {
             TTEntryType::Exact
         };
 
-        self.tt
-            .insert(TTEntry::new(self.hash(), best.1, best.0, depth, 0, ty));
+        self.tt.insert(TTEntry::new(
+            self.hash(),
+            best.1,
+            best.0,
+            depth,
+            self.tt_age,
+            ty,
+        ));
 
         Some(best)
     }

@@ -10,7 +10,7 @@ pub struct TTEntry {
     pub eval: i32,
     pub best: Move,
     pub depth: u8,
-    pub age: u8,
+    pub age: u16,
     pub ty: TTEntryType,
 }
 
@@ -45,7 +45,7 @@ impl TT {
     pub fn insert(&mut self, index: TTEntry) {
         let i = index.hash as usize % self.0.len();
         let old_index = &mut self.0[i];
-        if score(old_index.age, old_index.depth) < score(index.age, index.depth) {
+        if score(old_index.age, old_index.depth) <= score(index.age, index.depth) {
             if old_index.depth == 0 {
                 self.1 += 1;
             }
@@ -64,8 +64,8 @@ impl TT {
     }
 }
 
-fn score(age: u8, depth: u8) -> u16 {
-    age as u16 * 2 + depth as u16
+fn score(age: u16, depth: u8) -> u16 {
+    age + depth as u16 / 3
 }
 
 fn tt_size(size: usize) -> usize {
@@ -73,7 +73,7 @@ fn tt_size(size: usize) -> usize {
 }
 
 impl TTEntry {
-    pub fn new(hash: u64, eval: i32, best: Move, depth: u8, age: u8, ty: TTEntryType) -> Self {
+    pub fn new(hash: u64, eval: i32, best: Move, depth: u8, age: u16, ty: TTEntryType) -> Self {
         Self {
             hash,
             eval,

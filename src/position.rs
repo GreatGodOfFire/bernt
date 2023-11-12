@@ -7,6 +7,7 @@ pub struct Position {
     pub castling: [[u8; 2]; 2],
     pub en_passant: u8,
     pub halfmove: u8,
+    pub age: u16,
     pub side: PieceColor,
 }
 
@@ -56,6 +57,7 @@ impl Position {
             castling: [[0, 7], [56, 63]],
             en_passant: 64,
             halfmove: 0,
+            age: 1,
             side: PieceColor::White,
         }
     }
@@ -67,6 +69,7 @@ impl Position {
             castling: [[64; 2]; 2],
             en_passant: 64,
             halfmove: 0,
+            age: 1,
             side: PieceColor::White,
         }
     }
@@ -95,6 +98,8 @@ impl Position {
         } else {
             pos.halfmove += 1;
         }
+
+        pos.age += 1;
 
         let en_passant = pos.en_passant;
 
@@ -249,6 +254,7 @@ impl Position {
         }
 
         pos.halfmove = parts.get(4).and_then(|x| x.parse().ok()).unwrap_or(0);
+        pos.halfmove = parts.get(5).and_then(|x| x.parse().ok()).unwrap_or(1);
 
         return pos;
     }
