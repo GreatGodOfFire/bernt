@@ -371,6 +371,7 @@ impl SearchContext<'_> {
         }
 
         let mut search_pv = true;
+        let mut skip_quiets = false;
 
         for m in MovePicker::new(
             movegen::<true>(&pos.pos),
@@ -379,6 +380,19 @@ impl SearchContext<'_> {
             &self.killers[ply as usize],
             &self.history[pos.pos.side],
         ) {
+            if best.1 > -CHECKMATE - 255
+                && !pv_node
+                && !in_check
+                && depth <= LMP_DEPTH
+                && n_moves >= LMP_NMOVES + depth * depth
+            {
+                skip_quiets = true;
+            }
+
+            if m.flags == MoveFlag::QUIET && !in_check && skip_quiets {
+                continue;
+            }
+
             let pos = self.update(pos, m, true);
 
             if !pos.pos.in_check(!pos.pos.side) {
