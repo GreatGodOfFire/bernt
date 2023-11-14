@@ -370,8 +370,9 @@ impl SearchContext<'_> {
             return Some((Move::NULL, pos.eval));
         }
 
-        let mut search_pv = true;
         let mut skip_quiets = false;
+
+        let mut search_pv = true;
 
         for m in MovePicker::new(
             movegen::<true>(&pos.pos),
@@ -406,6 +407,15 @@ impl SearchContext<'_> {
                     && depth <= FP_DEPTH
                     && pos.eval + FP_BASE + FP_MUL * depth as i32 <= alpha
                     && best.1 > -CHECKMATE
+                {
+                    skip_quiets = true;
+                }
+
+                if best.1 > -CHECKMATE
+                    && !pv_node
+                    && !in_check
+                    && depth <= LMP_DEPTH
+                    && n_moves >= LMP_BASE + LMP_MUL * (depth as u16).pow(LMP_POW)
                 {
                     skip_quiets = true;
                 }
