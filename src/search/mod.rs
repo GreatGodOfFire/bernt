@@ -61,7 +61,7 @@ pub fn search(
         repetitions,
         tt,
         killers: [[Move::NULL; 2]; 256],
-        history: [[[u32::MAX; 64]; 6]; 2],
+        history: [[[0; 64]; 6]; 2],
         tt_age: pos.age,
     };
 
@@ -439,7 +439,7 @@ impl SearchContext<'_> {
                             if m.flags == MoveFlag::QUIET && self.killers[ply as usize][0] != m {
                                 self.killers[ply as usize][1] = self.killers[ply as usize][0];
                                 self.killers[ply as usize][0] = m;
-                                self.history[!pos.pos.side][m.piece][m.to as usize] -=
+                                self.history[!pos.pos.side][m.piece][m.to as usize] +=
                                     depth as u32 * depth as u32;
                             }
                             self.repetitions.pop();

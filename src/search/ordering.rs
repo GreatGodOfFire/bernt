@@ -47,14 +47,14 @@ impl Iterator for MovePicker {
             return None;
         }
 
-        let mut best = u32::MAX;
+        let mut best = 0;
         let mut idx = 0;
 
         for (i, &score) in self.scores
             .iter()
             .enumerate()
         {
-            if score < best {
+            if score > best {
                 idx = i;
                 best = score;
             }
@@ -97,23 +97,23 @@ fn move_score(
     history: &[[u32; 64]; 6],
 ) -> u32 {
     if m == pv {
-        return 0;
+        return u32::MAX;
     }
     if m.capture() && m.flags != MoveFlag::EP {
-        return 20 - MVVLVA_LOOKUP[m.piece][pos.pos.piece_at(m.to).ty];
+        return u32::MAX - 120 + MVVLVA_LOOKUP[m.piece][pos.pos.piece_at(m.to).ty];
     }
 
     if killers.contains(&m) {
-        return 12;
+        return u32::MAX - 112;
     }
 
     if m.promotion() != PieceType::None {
-        return 30;
+        return u32::MAX - 130;
     }
 
     if m.flags == MoveFlag::QUIET {
         return history[m.piece][m.to as usize];
     }
 
-    u32::MAX
+    0
 }
