@@ -413,7 +413,10 @@ impl SearchContext<'_> {
                     if search_pv {
                         self.negamax(&pos, -beta, -alpha, ply + 1, depth - 1, is_nm)
                     } else {
-                        let red = if !m.capture() && beta - alpha == 1 && n_moves >= 3 && depth > 1
+                        let red = if !m.capture()
+                            && beta - alpha == 1
+                            && n_moves >= LMR_NMOVES
+                            && depth > 1
                         {
                             lmr_reduction.clamp(1, depth - 1)
                         } else {
