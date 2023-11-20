@@ -22,11 +22,12 @@ impl TimeManager {
             } else {
                 let t = t as f32;
                 let inc = inc as f32;
+                let extra = (t - inc).max(0.0);
 
                 let max = (t - 25.0).max(0.0);
 
-                let hard = max.min(inc * 3.0 / 4.0 + t / TIMEMAN_HARDDIV);
-                let soft = max.min(inc * 3.0 / 4.0 + t / TIMEMAN_SOFTDIV);
+                let hard = max.min(inc * 3.0 / 4.0 + extra / TIMEMAN_HARDDIV);
+                let soft = max.min(inc * 3.0 / 4.0 + extra / TIMEMAN_SOFTDIV);
 
                 (
                     Some(Duration::from_secs_f32(hard / 1000.0)),
