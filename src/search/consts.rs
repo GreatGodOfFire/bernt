@@ -14,9 +14,5 @@ pub const LMP_NMOVES: u8 = 8;
 pub const RFP_DEPTH: u8 = 2;
 pub const RFP_MARGIN: i32 = 101;
 
-pub const FP_DEPTH: u8 = 2;
-pub const FP_BASE: i32 = 460;
-pub const FP_MUL: i32 = 100;
-
 pub const TIMEMAN_HARDDIV: f32 = 4.0;
 pub const TIMEMAN_SOFTDIV: f32 = 30.0;

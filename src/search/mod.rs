@@ -373,10 +373,6 @@ impl SearchContext<'_> {
         let mut search_pv = true;
         let mut skip_quiets = false;
 
-        if !in_check && depth <= 5 && pos.eval + FP_BASE + depth as i32 * FP_MUL <= alpha {
-            skip_quiets = true;
-        }
-
         for m in MovePicker::new(
             movegen::<true>(&pos.pos),
             &pos,
