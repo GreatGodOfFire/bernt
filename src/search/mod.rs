@@ -380,12 +380,6 @@ impl SearchContext<'_> {
             &self.killers[ply as usize],
             &self.history[pos.pos.side],
         ) {
-            if ply > 0 && !pv_node && !in_check && best.1 > -CHECKMATE - 255 {
-                if depth <= LMP_DEPTH && n_moves >= LMP_NMOVES + depth * depth {
-                    skip_quiets = true;
-                }
-            }
-
             if m.flags == MoveFlag::QUIET && !in_check && skip_quiets {
                 continue;
             }
