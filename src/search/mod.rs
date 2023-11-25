@@ -92,7 +92,7 @@ pub fn search(
         }
 
         loop {
-            let b = if let Some((m, score)) = context.negamax(&pos, alpha, beta, 0, depth, false) {
+            let b = if let Some((m, score)) = context.negamax(&pos, alpha, beta, 0, depth) {
                 (m, score)
             } else {
                 break;
@@ -318,7 +318,6 @@ impl SearchContext<'_> {
         beta: i32,
         ply: u8,
         mut depth: u8,
-        is_nm: bool,
     ) -> Option<(Move, i32)> {
         let pv_node = beta - alpha != 1;
 
@@ -346,7 +345,6 @@ impl SearchContext<'_> {
         }
 
         if beta - alpha == 1
-            && !is_nm
             && !in_check
             && depth >= NMP_REDUCTION
             && pos.eval >= beta
@@ -355,7 +353,7 @@ impl SearchContext<'_> {
         {
             let pos = self.update(pos, Move::NULL, true);
             let (_, score) =
-                self.negamax(&pos, -beta, -beta + 1, ply + 1, depth - NMP_REDUCTION, true)?;
+                self.negamax(&pos, -beta, -beta + 1, ply + 1, depth - NMP_REDUCTION)?;
             self.repetitions.pop();
             if -score >= beta {
                 return Some((Move::NULL, -score));
@@ -401,7 +399,7 @@ impl SearchContext<'_> {
                     Some((Move::NULL, 0))
                 } else {
                     if search_pv {
-                        self.negamax(&pos, -beta, -alpha, ply + 1, depth - 1, is_nm)
+                        self.negamax(&pos, -beta, -alpha, ply + 1, depth - 1)
                     } else {
                         let red = if !m.capture()
                             && beta - alpha == 1
@@ -414,10 +412,10 @@ impl SearchContext<'_> {
                         };
 
                         let mut res =
-                            self.negamax(&pos, -best.1 - 1, -best.1, ply + 1, depth - red, is_nm);
+                            self.negamax(&pos, -best.1 - 1, -best.1, ply + 1, depth - red);
                         if let Some(r) = res {
                             if -r.1 > best.1 {
-                                res = self.negamax(&pos, -beta, -alpha, ply + 1, depth - 1, is_nm);
+                                res = self.negamax(&pos, -beta, -alpha, ply + 1, depth - 1);
                             }
                         }
 
