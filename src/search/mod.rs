@@ -348,6 +348,7 @@ impl SearchContext<'_> {
         if beta - alpha == 1
             && !is_nm
             && !in_check
+            && !pv_node
             && depth >= NMP_REDUCTION
             && pos.eval >= beta
             && ply > 0
