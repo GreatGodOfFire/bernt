@@ -380,7 +380,11 @@ impl SearchContext<'_> {
             &self.killers[ply as usize],
             &self.history[pos.pos.side],
         ) {
-            if m.flags == MoveFlag::QUIET && !in_check && skip_quiets {
+            if !m.capture()
+                && m.promotion() == PieceType::None
+                && skip_quiets
+                && !self.killers[ply as usize].contains(&m)
+            {
                 continue;
             }
 
@@ -396,6 +400,15 @@ impl SearchContext<'_> {
 
                 let lmr_reduction =
                     (LMR_BASE + (depth as f32).ln() * (n_moves as f32).ln() / LMR_DIV) as u8;
+
+                if !m.capture()
+                    && m.promotion() == PieceType::None
+                    && depth <= FP_DEPTH
+                    && pos.eval + FP_BASE + FP_MUL * depth as i32 * depth as i32 <= alpha
+                    && best.1 > -CHECKMATE
+                {
+                    skip_quiets = true;
+                }
 
                 let res = if self.is_draw(&pos.pos) {
                     Some((Move::NULL, 0))
