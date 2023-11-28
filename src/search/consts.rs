@@ -13,3 +13,14 @@ pub const RFP_MARGIN: i32 = 101;
 
 pub const TIMEMAN_HARDDIV: f32 = 4.0;
 pub const TIMEMAN_SOFTDIV: f32 = 30.0;
+
+#[rustfmt::skip]
+pub const MVVLVA_LOOKUP: [[u32; 5]; 6] = [
+        /* P   N   B   R   Q */ 
+/* P */  [ 9, 11, 11, 13, 17],
+/* N */  [ 7,  9,  8, 11, 15],
+/* B */  [ 7, 10,  9, 11, 15],
+/* R */  [ 5,  7,  7,  9, 13],
+/* Q */  [ 1,  3,  3,  5,  9],
+/* K */  [ 0,  2,  2,  4,  8],
+];

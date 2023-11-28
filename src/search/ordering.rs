@@ -3,7 +3,7 @@ use crate::{
     position::{Move, MoveFlag, PieceType},
 };
 
-use super::{SearchContext, SearchPosition};
+use super::{consts::MVVLVA_LOOKUP, SearchContext, SearchPosition};
 
 impl SearchContext<'_> {
     pub(super) fn order_mvvlva(&self, mut moves: MoveList, pos: &SearchPosition) -> MoveList {
@@ -32,10 +32,7 @@ impl MovePicker {
             scores.push(move_score(*m, pos, tt_move, killers, history))
         }
 
-        Self {
-            scores,
-            moves,
-        }
+        Self { scores, moves }
     }
 }
 
@@ -50,10 +47,7 @@ impl Iterator for MovePicker {
         let mut best = 0;
         let mut idx = 0;
 
-        for (i, &score) in self.scores
-            .iter()
-            .enumerate()
-        {
+        for (i, &score) in self.scores.iter().enumerate() {
             if score > best {
                 idx = i;
                 best = score;
@@ -77,17 +71,6 @@ fn mvvlva(m: Move, pos: &SearchPosition) -> u32 {
         0
     }
 }
-
-#[rustfmt::skip]
-pub const MVVLVA_LOOKUP: [[u32; 5]; 6] = [
-        /* P   N   B   R   Q */ 
-/* P */  [ 9, 11, 11, 13, 17],
-/* N */  [ 7,  9,  8, 11, 15],
-/* B */  [ 7, 10,  9, 11, 15],
-/* R */  [ 5,  7,  7,  9, 13],
-/* Q */  [ 1,  3,  3,  5,  9],
-/* K */  [ 0,  2,  2,  4,  8],
-];
 
 fn move_score(
     m: Move,
