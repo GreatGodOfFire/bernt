@@ -17,7 +17,7 @@ impl TimeManager {
             PieceColor::Black => (options.btime, options.binc),
         };
         let (hard, soft) = {
-            if t == u64::MAX {
+            if t == i64::MAX {
                 (None, None)
             } else {
                 let t = t as f32;

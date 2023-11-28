@@ -163,8 +163,8 @@ fn main() {
 
 #[derive(Clone)]
 pub struct SearchOptions {
-    pub wtime: u64,
-    pub btime: u64,
+    pub wtime: i64,
+    pub btime: i64,
     pub winc: u64,
     pub binc: u64,
     pub depth: u8,
@@ -174,8 +174,8 @@ pub struct SearchOptions {
 impl Default for SearchOptions {
     fn default() -> Self {
         Self {
-            wtime: u64::MAX,
-            btime: u64::MAX,
+            wtime: i64::MAX,
+            btime: i64::MAX,
             winc: 0,
             binc: 0,
             depth: 255,
