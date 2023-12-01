@@ -1,9 +1,9 @@
 use crate::movegen::movegen;
 
-use super::{SearchContext, SearchPosition};
+use super::{PositionEval, SearchContext};
 
 impl SearchContext<'_> {
-    pub fn qsearch(&mut self, pos: &SearchPosition, ply: u8, mut alpha: i32, beta: i32) -> i32 {
+    pub fn qsearch(&mut self, pos: &PositionEval, ply: u8, mut alpha: i32, beta: i32) -> i32 {
         let eval = pos.eval;
         if eval >= beta {
             return beta;

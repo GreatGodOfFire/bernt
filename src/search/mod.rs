@@ -10,13 +10,13 @@ use std::time::{Duration, Instant};
 use crate::{
     movegen::movegen,
     position::{Move, MoveFlag, PieceColor, PieceType, Position},
-    search::eval::{flip, EG_PSTS, MG_PSTS, PHASE},
+    search::eval::{flip, king_safety, EG_PSTS, MG_PSTS, PHASE},
     zobrist, SearchOptions,
 };
 
 use self::{
     consts::*,
-    eval::eval,
+    eval::{eval, PositionEval},
     ordering::MovePicker,
     timeman::TimeManager,
     tt::{TTEntry, TTEntryType, TT},
@@ -32,14 +32,6 @@ struct SearchContext<'a> {
     tt_age: u16,
 }
 
-struct SearchPosition {
-    pos: Position,
-    eval: i32,
-    mg_eval: i32,
-    eg_eval: i32,
-    phase: i32,
-}
-
 pub struct SearchResult {
     pub best: Move,
     pub score: i32,
@@ -48,7 +40,7 @@ pub struct SearchResult {
 }
 
 pub fn search(
-    pos: &Position,
+    pos: Position,
     options: SearchOptions,
     repetitions: Vec<u64>,
     tt: &mut TT,
@@ -67,15 +59,7 @@ pub fn search(
 
     let mut best = (Move::NULL, -INF);
 
-    let (eval, mg_eval, eg_eval, phase) = eval(&pos);
-
-    let pos = SearchPosition {
-        pos: pos.clone(),
-        eval,
-        mg_eval,
-        eg_eval,
-        phase,
-    };
+    let pos = eval(pos);
 
     for depth in 1..=options.depth {
         if depth > 1 && context.timeman.soft_stop() {
@@ -165,11 +149,12 @@ impl SearchContext<'_> {
         is_draw(pos, &self.repetitions)
     }
 
-    fn update(&mut self, pos: &SearchPosition, m: Move, update_hash: bool) -> SearchPosition {
+    fn update(&mut self, pos: &PositionEval, m: Move, update_hash: bool) -> PositionEval {
         use PieceType::*;
 
-        let mut mg = pos.mg_eval;
-        let mut eg = pos.eg_eval;
+        let mut mg = pos.mg;
+        let mut eg = pos.eg;
+        let mut safety = pos.safety;
         let mut phase = pos.phase;
 
         let mut hash = *self.repetitions.last().unwrap();
@@ -180,11 +165,12 @@ impl SearchContext<'_> {
                 self.repetitions.push(hash);
             }
 
-            return SearchPosition {
+            return PositionEval {
                 pos: pos.pos.make_move(m),
                 eval: -pos.eval,
-                mg_eval: -mg,
-                eg_eval: -eg,
+                mg: -mg,
+                eg: -eg,
+                safety,
                 phase,
             };
         }
@@ -298,11 +284,28 @@ impl SearchContext<'_> {
             self.repetitions.push(hash);
         }
 
-        return SearchPosition {
+        let mut eval = (-mg * phase.min(24) + -eg * (24 - phase.min(24))) / 24;
+
+        if m.piece == King || m.piece == Pawn {
+            let s = king_safety(
+                pos.pos.side,
+                m.to,
+                pos.pos.pieces[Pawn] & pos.pos.colors[pos.pos.side],
+            );
+
+            eval += safety[pos.pos.side];
+
+            safety[pos.pos.side] = s;
+
+            eval -= s;
+        }
+
+        return PositionEval {
             pos: pos.pos.make_move(m),
-            eval: (-mg * phase.min(24) + -eg * (24 - phase.min(24))) / 24,
-            mg_eval: -mg,
-            eg_eval: -eg,
+            eval,
+            mg: -mg,
+            eg: -eg,
+            safety,
             phase,
         };
     }
@@ -313,7 +316,7 @@ impl SearchContext<'_> {
 
     fn negamax(
         &mut self,
-        pos: &SearchPosition,
+        pos: &PositionEval,
         alpha: i32,
         beta: i32,
         ply: u8,

@@ -3,9 +3,20 @@ use crate::{
     position::{PieceColor, PieceType, Position},
 };
 
-pub fn eval(pos: &Position) -> (i32, i32, i32, i32) {
+pub struct PositionEval {
+    pub pos: Position,
+    pub eval: i32,
+    pub mg: i32,
+    pub eg: i32,
+    pub safety: [i32; 2],
+    pub phase: i32,
+}
+
+pub fn eval(pos: Position) -> PositionEval {
     let mut mg = 0;
     let mut eg = 0;
+    let mut safety = [0; 2];
+
     let mut phase = 0;
 
     bitloop!(pos.colors[0] | pos.colors[1] => sq, {
@@ -16,12 +27,51 @@ pub fn eval(pos: &Position) -> (i32, i32, i32, i32) {
             mg += MG_PSTS[piece.ty][flip(sq, piece.color) as usize] * sign;
             eg += EG_PSTS[piece.ty][flip(sq, piece.color) as usize] * sign;
             phase += PHASE[piece.ty];
+
+            if piece.ty == PieceType::King {
+                let s = king_safety(piece.color, sq, pos.pieces[PieceType::Pawn] & pos.colors[piece.color]);
+
+                safety[piece.color] = s;
+            }
         }
     });
     phase = phase.min(24);
 
-    ((mg * phase + eg * (24 - phase)) / 24, mg, eg, phase)
+    PositionEval {
+        eval: (mg * phase + eg * (24 - phase)) / 24 + safety[pos.side] - safety[!pos.side],
+        mg,
+        eg,
+        safety,
+        phase,
+        pos,
+    }
 }
+
+pub(super) fn king_safety(color: PieceColor, sq: u8, pawns: u64) -> i32 {
+    if flip(sq, color) < 8 {
+        let file = sq % 8;
+        let pawns = (pawns & SAFETY_MASKS[color][file as usize]).count_ones() as i32;
+        return 2 * pawns;
+    } else {
+        return 0;
+    }
+}
+
+const SAFETY_MASKS: [[u64; 8]; 2] = [
+    [
+        0x30300, 0x70700, 0xe0e00, 0x1c1c00, 0x383800, 0x707000, 0xe0e000, 0xc0c000,
+    ],
+    [
+        0x3030000000000,
+        0x7070000000000,
+        0xe0e0000000000,
+        0x1c1c0000000000,
+        0x38380000000000,
+        0x70700000000000,
+        0xe0e00000000000,
+        0xc0c00000000000,
+    ],
+];
 
 #[inline]
 pub(super) fn flip(sq: u8, side: PieceColor) -> u8 {

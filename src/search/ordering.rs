@@ -3,10 +3,10 @@ use crate::{
     position::{Move, MoveFlag, PieceType},
 };
 
-use super::{consts::MVVLVA_LOOKUP, SearchContext, SearchPosition};
+use super::{consts::MVVLVA_LOOKUP, PositionEval, SearchContext};
 
 impl SearchContext<'_> {
-    pub(super) fn order_mvvlva(&self, mut moves: MoveList, pos: &SearchPosition) -> MoveList {
+    pub(super) fn order_mvvlva(&self, mut moves: MoveList, pos: &PositionEval) -> MoveList {
         moves.moves[..moves.len as usize].sort_unstable_by_key(|x| 255 - mvvlva(*x, pos));
 
         moves
@@ -21,7 +21,7 @@ pub struct MovePicker {
 impl MovePicker {
     pub(super) fn new(
         moves: MoveList,
-        pos: &SearchPosition,
+        pos: &PositionEval,
         tt_move: Move,
         killers: &[Move; 2],
         history: &[[u32; 64]; 6],
@@ -64,7 +64,7 @@ impl Iterator for MovePicker {
     }
 }
 
-fn mvvlva(m: Move, pos: &SearchPosition) -> u32 {
+fn mvvlva(m: Move, pos: &PositionEval) -> u32 {
     if m.capture() && m.flags != MoveFlag::EP {
         MVVLVA_LOOKUP[m.piece][pos.pos.piece_at(m.to).ty]
     } else {
@@ -74,7 +74,7 @@ fn mvvlva(m: Move, pos: &SearchPosition) -> u32 {
 
 fn move_score(
     m: Move,
-    pos: &SearchPosition,
+    pos: &PositionEval,
     pv: Move,
     killers: &[Move; 2],
     history: &[[u32; 64]; 6],

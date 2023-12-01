@@ -134,7 +134,7 @@ fn main() {
                 }
             }
             "eval" => {
-                println!("Evaluation: {}", eval(&pos).0);
+                println!("Evaluation: {}", eval(pos.clone()).eval);
             }
             "go" => {
                 let mut iter = args[1..].iter();
@@ -153,7 +153,7 @@ fn main() {
 
                 println!(
                     "bestmove {}",
-                    search(&pos, options, repetitions.clone(), &mut tt).best
+                    search(pos.clone(), options, repetitions.clone(), &mut tt).best
                 );
             }
             _ => {}
