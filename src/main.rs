@@ -144,6 +144,9 @@ fn main() {
                     match *arg {
                         "wtime" => options.wtime = iter.next().unwrap().parse().unwrap(),
                         "btime" => options.btime = iter.next().unwrap().parse().unwrap(),
+                        "movestogo" => {
+                            options.movestogo = Some(iter.next().unwrap().parse().unwrap())
+                        }
                         "winc" => options.winc = iter.next().unwrap().parse().unwrap(),
                         "binc" => options.binc = iter.next().unwrap().parse().unwrap(),
                         "depth" => options.depth = iter.next().unwrap().parse().unwrap(),
@@ -167,6 +170,7 @@ pub struct SearchOptions {
     pub btime: i64,
     pub winc: u64,
     pub binc: u64,
+    pub movestogo: Option<u64>,
     pub depth: u8,
     pub info: bool,
 }
@@ -176,6 +180,7 @@ impl Default for SearchOptions {
         Self {
             wtime: i64::MAX,
             btime: i64::MAX,
+            movestogo: None,
             winc: 0,
             binc: 0,
             depth: 255,

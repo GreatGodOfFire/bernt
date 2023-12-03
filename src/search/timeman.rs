@@ -27,7 +27,14 @@ impl TimeManager {
                 let max = (t - 25.0).max(0.0);
 
                 let hard = max.min(inc * 3.0 / 4.0 + extra / TIMEMAN_HARDDIV);
-                let soft = max.min(inc * 3.0 / 4.0 + extra / TIMEMAN_SOFTDIV);
+                let soft = max.min(
+                    inc * 3.0 / 4.0
+                        + extra
+                            / options
+                                .movestogo
+                                .map(|x| x as f32)
+                                .unwrap_or(TIMEMAN_SOFTDIV),
+                );
 
                 (
                     Some(Duration::from_secs_f32(hard / 1000.0)),
