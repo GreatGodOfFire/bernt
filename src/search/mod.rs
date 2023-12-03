@@ -404,7 +404,7 @@ impl SearchContext<'_> {
                 if !m.capture()
                     && m.promotion() == PieceType::None
                     && depth <= FP_DEPTH
-                    && pos.eval + FP_BASE + FP_MUL * depth as i32 * depth as i32 <= alpha
+                    && pos.eval + FP_BASE + FP_MUL * depth as i32 <= alpha
                     && best.1 > -CHECKMATE
                 {
                     skip_quiets = true;
