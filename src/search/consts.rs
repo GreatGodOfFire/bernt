@@ -8,10 +8,10 @@ pub const LMR_BASE: f32 = 1.66;
 pub const LMR_DIV: f32 = 3.41;
 pub const LMR_NMOVES: u16 = 5;
 
-pub const LMP_DEPTH: u8 = 5;
-pub const LMP_BASE: u16 = 3;
-pub const LMP_MUL: u16 = 1;
-pub const LMP_POW: u32 = 2;
+pub const LMP_DEPTH: u8 = 4;
+pub const LMP_BASE: u16 = 12;
+pub const LMP_MUL: u16 = 6;
+pub const LMP_POW: u32 = 3;
 
 pub const RFP_DEPTH: u8 = 2;
 pub const RFP_MARGIN: i32 = 101;
