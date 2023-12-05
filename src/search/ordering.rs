@@ -82,7 +82,7 @@ fn move_score(
     if m == pv {
         return u32::MAX;
     }
-    if m.capture() && m.flags != MoveFlag::EP {
+    if m.capture() {
         return u32::MAX - 120 + MVVLVA_LOOKUP[m.piece][pos.pos.piece_at(m.to).ty];
     }
 
@@ -94,9 +94,5 @@ fn move_score(
         return u32::MAX - 130;
     }
 
-    if m.flags == MoveFlag::QUIET {
-        return history[m.piece][m.to as usize];
-    }
-
-    0
+    history[m.piece][m.to as usize]
 }
