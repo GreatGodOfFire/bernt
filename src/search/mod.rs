@@ -424,7 +424,7 @@ impl SearchContext<'_> {
                     Some((Move::NULL, 0))
                 } else {
                     if search_pv {
-                        self.negamax(&pos, -beta, -alpha, ply + 1, depth - 1, is_nm)
+                        self.negamax(&pos, -beta, -best.1, ply + 1, depth - 1, is_nm)
                     } else {
                         let red = if !m.capture()
                             && beta - alpha == 1
@@ -440,7 +440,7 @@ impl SearchContext<'_> {
                             self.negamax(&pos, -best.1 - 1, -best.1, ply + 1, depth - red, is_nm);
                         if let Some(r) = res {
                             if -r.1 > best.1 {
-                                res = self.negamax(&pos, -beta, -alpha, ply + 1, depth - 1, is_nm);
+                                res = self.negamax(&pos, -beta, -best.1, ply + 1, depth - 1, is_nm);
                             }
                         }
 
@@ -450,7 +450,8 @@ impl SearchContext<'_> {
 
                 if let Some(res) = res {
                     if -res.1 > best.1 {
-                        best = (m, -res.1);
+                        best.0 = m;
+                        best.1 = best.1.max(-res.1);
                         search_pv = false;
                         if -res.1 >= beta {
                             if m.flags == MoveFlag::QUIET && self.killers[ply as usize][0] != m {
