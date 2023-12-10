@@ -1,27 +1,27 @@
-pub const ASP_DEPTH: u8 = 3;
-pub const ASP_WINDOW: i32 = 95;
-pub const ASP_INC_FACTOR: f32 = 1.0;
+pub const ASP_DEPTH: u8 = 4;
+pub const ASP_WINDOW: i32 = 114;
+pub const ASP_INC_FACTOR: f32 = 0.47;
 
 pub const NMP_REDUCTION: u8 = 3;
 
-pub const LMR_BASE: f32 = 1.66;
-pub const LMR_DIV: f32 = 3.41;
+pub const LMR_BASE: f32 = 1.13;
+pub const LMR_DIV: f32 = 3.25;
 pub const LMR_NMOVES: u16 = 5;
 
 pub const LMP_DEPTH: u8 = 2;
-pub const LMP_BASE: u16 = 3;
+pub const LMP_BASE: u16 = 2;
 pub const LMP_MUL: u16 = 5;
-pub const LMP_POW: u32 = 3;
+pub const LMP_POW: u32 = 2;
 
-pub const RFP_DEPTH: u8 = 2;
-pub const RFP_MARGIN: i32 = 101;
+pub const RFP_DEPTH: u8 = 3;
+pub const RFP_MARGIN: i32 = 82;
 
 pub const FP_DEPTH: u8 = 5;
-pub const FP_BASE: i32 = 252;
-pub const FP_MUL: i32 = 493;
+pub const FP_BASE: i32 = 259;
+pub const FP_MUL: i32 = 527;
 
-pub const TIMEMAN_HARDDIV: f32 = 4.0;
-pub const TIMEMAN_SOFTDIV: f32 = 30.0;
+pub const TIMEMAN_HARDDIV: f32 = 3.79;
+pub const TIMEMAN_SOFTDIV: f32 = 44.61;
 
 #[rustfmt::skip]
 pub const MVVLVA_LOOKUP: [[u32; 5]; 6] = [
