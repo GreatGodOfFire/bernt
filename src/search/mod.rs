@@ -29,6 +29,7 @@ struct SearchContext<'a> {
     tt: &'a mut TT,
     killers: [[Move; 2]; 256],
     history: [[[u32; 64]; 6]; 2],
+    cmh: [[Move; 64]; 64],
     tt_age: u16,
 }
 
@@ -62,6 +63,7 @@ pub fn search(
         tt,
         killers: [[Move::NULL; 2]; 256],
         history: [[[0; 64]; 6]; 2],
+        cmh: [[Move::NULL; 64]; 64],
         tt_age: pos.age,
     };
 
@@ -92,7 +94,9 @@ pub fn search(
         }
 
         loop {
-            let b = if let Some((m, score)) = context.negamax(&pos, alpha, beta, 0, depth, false) {
+            let b = if let Some((m, score)) =
+                context.negamax(&pos, alpha, beta, 0, depth, false, Move::NULL)
+            {
                 (m, score)
             } else {
                 break;
@@ -319,6 +323,7 @@ impl SearchContext<'_> {
         ply: u8,
         mut depth: u8,
         is_nm: bool,
+        prev_move: Move,
     ) -> Option<(Move, i32)> {
         let pv_node = beta - alpha != 1;
 
@@ -354,8 +359,15 @@ impl SearchContext<'_> {
             && (pos.pos.pieces[PieceType::Pawn] & pos.pos.colors[pos.pos.side]).count_ones() > 0
         {
             let pos = self.update(pos, Move::NULL, true);
-            let (_, score) =
-                self.negamax(&pos, -beta, -beta + 1, ply + 1, depth - NMP_REDUCTION, true)?;
+            let (_, score) = self.negamax(
+                &pos,
+                -beta,
+                -beta + 1,
+                ply + 1,
+                depth - NMP_REDUCTION,
+                true,
+                Move::NULL,
+            )?;
             self.repetitions.pop();
             if -score >= beta {
                 return Some((Move::NULL, -score));
@@ -380,11 +392,13 @@ impl SearchContext<'_> {
             tt_move,
             &self.killers[ply as usize],
             &self.history[pos.pos.side],
+            self.cmh[prev_move.from as usize][prev_move.to as usize],
         ) {
             if !m.capture()
                 && m.promotion() == PieceType::None
                 && skip_quiets
                 && !self.killers[ply as usize].contains(&m)
+                && self.cmh[prev_move.from as usize][prev_move.to as usize] != m
             {
                 continue;
             }
@@ -424,7 +438,7 @@ impl SearchContext<'_> {
                     Some((Move::NULL, 0))
                 } else {
                     if search_pv {
-                        self.negamax(&pos, -beta, -best.1, ply + 1, depth - 1, is_nm)
+                        self.negamax(&pos, -beta, -best.1, ply + 1, depth - 1, is_nm, m)
                     } else {
                         let red = if !m.capture()
                             && beta - alpha == 1
@@ -436,11 +450,21 @@ impl SearchContext<'_> {
                             1
                         };
 
+                        let rdepth = depth - red;
+
                         let mut res =
-                            self.negamax(&pos, -best.1 - 1, -best.1, ply + 1, depth - red, is_nm);
+                            self.negamax(&pos, -best.1 - 1, -best.1, ply + 1, rdepth, is_nm, m);
                         if let Some(r) = res {
                             if -r.1 > best.1 {
-                                res = self.negamax(&pos, -beta, -best.1, ply + 1, depth - 1, is_nm);
+                                res = self.negamax(
+                                    &pos,
+                                    -beta,
+                                    -best.1,
+                                    ply + 1,
+                                    depth - 1,
+                                    is_nm,
+                                    m,
+                                );
                             }
                         }
 
@@ -459,6 +483,7 @@ impl SearchContext<'_> {
                                 self.killers[ply as usize][0] = m;
                                 self.history[!pos.pos.side][m.piece][m.to as usize] +=
                                     depth as u32 * depth as u32;
+                                self.cmh[prev_move.from as usize][prev_move.to as usize] = m;
                             }
                             self.repetitions.pop();
                             return Some((m, -res.1));

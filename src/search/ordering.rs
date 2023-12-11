@@ -25,11 +25,12 @@ impl MovePicker {
         tt_move: Move,
         killers: &[Move; 2],
         history: &[[u32; 64]; 6],
+        counter_move: Move,
     ) -> Self {
         let mut scores = vec![];
 
         for m in &moves {
-            scores.push(move_score(*m, pos, tt_move, killers, history))
+            scores.push(move_score(*m, pos, tt_move, killers, history, counter_move))
         }
 
         Self { scores, moves }
@@ -78,6 +79,7 @@ fn move_score(
     pv: Move,
     killers: &[Move; 2],
     history: &[[u32; 64]; 6],
+    counter_move: Move,
 ) -> u32 {
     if m == pv {
         return u32::MAX;
@@ -95,7 +97,7 @@ fn move_score(
     }
 
     if m.flags == MoveFlag::QUIET {
-        return history[m.piece][m.to as usize];
+        return history[m.piece][m.to as usize] + (m == counter_move) as u32 * 500;
     }
 
     0
