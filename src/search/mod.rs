@@ -80,7 +80,7 @@ pub fn search(
     };
 
     for depth in 1..=options.depth {
-        if depth > 1 && context.timeman.soft_stop() {
+        if depth > 1 && (context.timeman.soft_stop() || context.timeman.hard_stop()) {
             break;
         }
 
