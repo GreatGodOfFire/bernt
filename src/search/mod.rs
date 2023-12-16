@@ -28,7 +28,7 @@ struct SearchContext<'a> {
     repetitions: Vec<u64>,
     tt: &'a mut TT,
     killers: [[Move; 2]; 256],
-    history: [[[u32; 64]; 6]; 2],
+    history: [[[i32; 64]; 6]; 2],
     cmh: [[Move; 64]; 64],
     tt_age: u16,
 }
@@ -482,7 +482,7 @@ impl SearchContext<'_> {
                                 self.killers[ply as usize][1] = self.killers[ply as usize][0];
                                 self.killers[ply as usize][0] = m;
                                 self.history[!pos.pos.side][m.piece][m.to as usize] +=
-                                    depth as u32 * depth as u32;
+                                    depth as i32 * depth as i32;
                                 self.cmh[prev_move.from as usize][prev_move.to as usize] = m;
                             }
                             self.repetitions.pop();

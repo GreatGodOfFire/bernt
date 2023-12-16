@@ -3,7 +3,7 @@ use crate::{
     position::{Move, MoveFlag, PieceType},
 };
 
-use super::{consts::MVVLVA_LOOKUP, SearchContext, SearchPosition};
+use super::{consts::MVVLVA_LOOKUP, eval::MG_PSTS, SearchContext, SearchPosition};
 
 impl SearchContext<'_> {
     pub(super) fn order_mvvlva(&self, mut moves: MoveList, pos: &SearchPosition) -> MoveList {
@@ -15,7 +15,7 @@ impl SearchContext<'_> {
 
 pub struct MovePicker {
     moves: MoveList,
-    scores: Vec<u32>,
+    scores: Vec<i32>,
 }
 
 impl MovePicker {
@@ -24,7 +24,7 @@ impl MovePicker {
         pos: &SearchPosition,
         tt_move: Move,
         killers: &[Move; 2],
-        history: &[[u32; 64]; 6],
+        history: &[[i32; 64]; 6],
         counter_move: Move,
     ) -> Self {
         let mut scores = vec![];
@@ -65,7 +65,7 @@ impl Iterator for MovePicker {
     }
 }
 
-fn mvvlva(m: Move, pos: &SearchPosition) -> u32 {
+fn mvvlva(m: Move, pos: &SearchPosition) -> i32 {
     if m.capture() && m.flags != MoveFlag::EP {
         MVVLVA_LOOKUP[m.piece][pos.pos.piece_at(m.to).ty]
     } else {
@@ -78,26 +78,28 @@ fn move_score(
     pos: &SearchPosition,
     pv: Move,
     killers: &[Move; 2],
-    history: &[[u32; 64]; 6],
+    history: &[[i32; 64]; 6],
     counter_move: Move,
-) -> u32 {
+) -> i32 {
     if m == pv {
-        return u32::MAX;
+        return i32::MAX;
     }
     if m.capture() && m.flags != MoveFlag::EP {
-        return u32::MAX - 120 + MVVLVA_LOOKUP[m.piece][pos.pos.piece_at(m.to).ty];
+        return i32::MAX - 120 + MVVLVA_LOOKUP[m.piece][pos.pos.piece_at(m.to).ty];
     }
 
     if killers.contains(&m) {
-        return u32::MAX - 112;
+        return i32::MAX - 112;
     }
 
     if m.promotion() != PieceType::None {
-        return u32::MAX - 130;
+        return i32::MAX - 130;
     }
 
     if m.flags == MoveFlag::QUIET {
-        return history[m.piece][m.to as usize] + (m == counter_move) as u32 * 500;
+        return history[m.piece][m.to as usize]
+            + (m == counter_move) as i32 * 500
+            + MG_PSTS[m.piece][m.to as usize];
     }
 
     0

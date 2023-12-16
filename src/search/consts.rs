@@ -24,7 +24,7 @@ pub const TIMEMAN_HARDDIV: f32 = 3.79;
 pub const TIMEMAN_SOFTDIV: f32 = 44.61;
 
 #[rustfmt::skip]
-pub const MVVLVA_LOOKUP: [[u32; 5]; 6] = [
+pub const MVVLVA_LOOKUP: [[i32; 5]; 6] = [
         /* P   N   B   R   Q */ 
 /* P */  [ 9, 11, 11, 13, 17],
 /* N */  [ 7,  9,  8, 11, 15],
