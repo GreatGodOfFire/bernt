@@ -507,6 +507,12 @@ impl SearchContext<'_> {
             }
         }
 
+        let mut tt_score = best.1;
+        if tt_score >= CHECKMATE {
+            tt_score -= ply as i32;
+        } else if tt_score <= -CHECKMATE {
+            tt_score += ply as i32;
+        }
         let ty = if best.1 >= beta {
             TTEntryType::Lower
         } else if best.1 <= alpha {
@@ -517,7 +523,7 @@ impl SearchContext<'_> {
 
         self.tt.insert(TTEntry::new(
             self.hash(),
-            best.1,
+            tt_score,
             best.0,
             depth,
             self.tt_age,
