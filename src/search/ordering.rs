@@ -3,7 +3,11 @@ use crate::{
     position::{Move, MoveFlag, PieceType},
 };
 
-use super::{consts::MVVLVA_LOOKUP, eval::MG_PSTS, SearchContext, SearchPosition};
+use super::{
+    consts::MVVLVA_LOOKUP,
+    eval::{flip, MG_PSTS},
+    SearchContext, SearchPosition,
+};
 
 impl SearchContext<'_> {
     pub(super) fn order_mvvlva(&self, mut moves: MoveList, pos: &SearchPosition) -> MoveList {
@@ -53,6 +57,8 @@ impl SearchContext<'_> {
 
         if m.flags == MoveFlag::QUIET {
             let mut score = self.history[pos.pos.side][m.piece][m.to as usize];
+            score -= MG_PSTS[m.piece][flip(m.from, pos.pos.side) as usize];
+            score += MG_PSTS[m.piece][flip(m.to, pos.pos.side) as usize];
 
             if ply > 0 {
                 let prev = self.move_stack[ply as usize - 1];
