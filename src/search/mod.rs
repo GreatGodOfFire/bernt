@@ -17,7 +17,6 @@ use crate::{
 use self::{
     consts::*,
     eval::eval,
-    ordering::MovePicker,
     timeman::TimeManager,
     tt::{TTEntry, TTEntryType, TT},
 };
@@ -29,7 +28,8 @@ struct SearchContext<'a> {
     tt: &'a mut TT,
     killers: [[Move; 2]; 256],
     history: [[[i32; 64]; 6]; 2],
-    cmh: [[Move; 64]; 64],
+    continuations: [[[[[i32; 64]; 6]; 64]; 6]; 2],
+    move_stack: [Move; 256],
     tt_age: u16,
 }
 
@@ -63,7 +63,8 @@ pub fn search(
         tt,
         killers: [[Move::NULL; 2]; 256],
         history: [[[0; 64]; 6]; 2],
-        cmh: [[Move::NULL; 64]; 64],
+        continuations: [[[[[0; 64]; 6]; 64]; 6]; 2],
+        move_stack: [Move::NULL; 256],
         tt_age: pos.age,
     };
 
@@ -94,9 +95,7 @@ pub fn search(
         }
 
         loop {
-            let b = if let Some((m, score)) =
-                context.negamax(&pos, alpha, beta, 0, depth, false, Move::NULL)
-            {
+            let b = if let Some((m, score)) = context.negamax(&pos, alpha, beta, 0, depth, false) {
                 (m, score)
             } else {
                 break;
@@ -323,7 +322,6 @@ impl SearchContext<'_> {
         ply: u8,
         mut depth: u8,
         is_nm: bool,
-        prev_move: Move,
     ) -> Option<(Move, i32)> {
         let pv_node = beta - alpha != 1;
 
@@ -359,15 +357,9 @@ impl SearchContext<'_> {
             && (pos.pos.pieces[PieceType::Pawn] & pos.pos.colors[pos.pos.side]).count_ones() > 0
         {
             let pos = self.update(pos, Move::NULL, true);
-            let (_, score) = self.negamax(
-                &pos,
-                -beta,
-                -beta + 1,
-                ply + 1,
-                depth - NMP_REDUCTION,
-                true,
-                Move::NULL,
-            )?;
+            self.move_stack[ply as usize] = Move::NULL;
+            let (_, score) =
+                self.negamax(&pos, -beta, -beta + 1, ply + 1, depth - NMP_REDUCTION, true)?;
             self.repetitions.pop();
             if -score >= beta {
                 return Some((Move::NULL, -score));
@@ -386,19 +378,12 @@ impl SearchContext<'_> {
 
         let mut search_pv = true;
 
-        for m in MovePicker::new(
-            movegen::<true>(&pos.pos),
-            &pos,
-            tt_move,
-            &self.killers[ply as usize],
-            &self.history[pos.pos.side],
-            self.cmh[prev_move.from as usize][prev_move.to as usize],
-        ) {
+        for m in self.movepicker(movegen::<true>(&pos.pos), &pos, tt_move, ply) {
             if !m.capture()
                 && m.promotion() == PieceType::None
                 && skip_quiets
                 && !self.killers[ply as usize].contains(&m)
-                && self.cmh[prev_move.from as usize][prev_move.to as usize] != m
+            // && self.cmh[prev_move.from as usize][prev_move.to as usize] != m
             {
                 continue;
             }
@@ -438,7 +423,8 @@ impl SearchContext<'_> {
                     Some((Move::NULL, 0))
                 } else {
                     if search_pv {
-                        self.negamax(&pos, -beta, -best.1, ply + 1, depth - 1, is_nm, m)
+                        self.move_stack[ply as usize] = m;
+                        self.negamax(&pos, -beta, -best.1, ply + 1, depth - 1, is_nm)
                     } else {
                         let red = if !m.capture()
                             && beta - alpha == 1
@@ -452,19 +438,12 @@ impl SearchContext<'_> {
 
                         let rdepth = depth - red;
 
+                        self.move_stack[ply as usize] = m;
                         let mut res =
-                            self.negamax(&pos, -best.1 - 1, -best.1, ply + 1, rdepth, is_nm, m);
+                            self.negamax(&pos, -best.1 - 1, -best.1, ply + 1, rdepth, is_nm);
                         if let Some(r) = res {
                             if -r.1 > best.1 {
-                                res = self.negamax(
-                                    &pos,
-                                    -beta,
-                                    -best.1,
-                                    ply + 1,
-                                    depth - 1,
-                                    is_nm,
-                                    m,
-                                );
+                                res = self.negamax(&pos, -beta, -best.1, ply + 1, depth - 1, is_nm);
                             }
                         }
 
@@ -483,7 +462,13 @@ impl SearchContext<'_> {
                                 self.killers[ply as usize][0] = m;
                                 self.history[!pos.pos.side][m.piece][m.to as usize] +=
                                     depth as i32 * depth as i32;
-                                self.cmh[prev_move.from as usize][prev_move.to as usize] = m;
+                                if ply > 0 {
+                                    let prev_move = self.move_stack[ply as usize - 1];
+                                    self.continuations[!pos.pos.side][m.piece][m.to as usize]
+                                        [prev_move.piece]
+                                        [prev_move.to as usize] +=
+                                        depth as i32 * depth as i32 * depth as i32 / 16;
+                                }
                             }
                             self.repetitions.pop();
                             return Some((m, -res.1));
