@@ -466,8 +466,7 @@ impl SearchContext<'_> {
                                     let prev_move = self.move_stack[ply as usize - 1];
                                     self.continuations[!pos.pos.side][m.piece][m.to as usize]
                                         [prev_move.piece]
-                                        [prev_move.to as usize] +=
-                                        depth as i32 * depth as i32 * depth as i32 / 16;
+                                        [prev_move.to as usize] += depth as i32 * 50 - 50;
                                 }
                             }
                             self.repetitions.pop();
