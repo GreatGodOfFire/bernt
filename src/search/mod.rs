@@ -28,7 +28,7 @@ struct SearchContext<'a> {
     tt: &'a mut TT,
     killers: [[Move; 2]; 256],
     history: [[[i32; 64]; 6]; 2],
-    continuations: [[[[[i32; 64]; 6]; 64]; 6]; 2],
+    continuations: [[[[[[i32; 64]; 6]; 64]; 6]; 2]; 2],
     move_stack: [Move; 256],
     tt_age: u16,
 }
@@ -63,7 +63,7 @@ pub fn search(
         tt,
         killers: [[Move::NULL; 2]; 256],
         history: [[[0; 64]; 6]; 2],
-        continuations: [[[[[0; 64]; 6]; 64]; 6]; 2],
+        continuations: [[[[[[0; 64]; 6]; 64]; 6]; 2]; 2],
         move_stack: [Move::NULL; 256],
         tt_age: pos.age,
     };
@@ -464,9 +464,15 @@ impl SearchContext<'_> {
                                     depth as i32 * depth as i32;
                                 if ply > 0 {
                                     let prev_move = self.move_stack[ply as usize - 1];
-                                    self.continuations[!pos.pos.side][m.piece][m.to as usize]
+                                    self.continuations[0][!pos.pos.side][m.piece][m.to as usize]
                                         [prev_move.piece]
                                         [prev_move.to as usize] += depth as i32 * 50 - 50;
+                                }
+                                if ply > 1 {
+                                    let prev_move = self.move_stack[ply as usize - 2];
+                                    self.continuations[1][!pos.pos.side][m.piece][m.to as usize]
+                                        [prev_move.piece]
+                                        [prev_move.to as usize] += depth as i32 * 20 - 20;
                                 }
                             }
                             self.repetitions.pop();
