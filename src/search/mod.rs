@@ -461,18 +461,18 @@ impl SearchContext<'_> {
                                 self.killers[ply as usize][1] = self.killers[ply as usize][0];
                                 self.killers[ply as usize][0] = m;
                                 self.history[!pos.pos.side][m.piece][m.to as usize] +=
-                                    depth as i32 * depth as i32;
+                                    depth as i32 * 365 - 427;
                                 if ply > 0 {
                                     let prev_move = self.move_stack[ply as usize - 1];
                                     self.continuations[0][!pos.pos.side][m.piece][m.to as usize]
                                         [prev_move.piece]
-                                        [prev_move.to as usize] += depth as i32 * 50 - 50;
+                                        [prev_move.to as usize] += depth as i32 * 365 - 427;
                                 }
                                 if ply > 1 {
                                     let prev_move = self.move_stack[ply as usize - 2];
                                     self.continuations[1][!pos.pos.side][m.piece][m.to as usize]
                                         [prev_move.piece]
-                                        [prev_move.to as usize] += depth as i32 * 20 - 20;
+                                        [prev_move.to as usize] += depth as i32 * 365 - 427;
                                 }
                             }
                             self.repetitions.pop();
