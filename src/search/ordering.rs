@@ -70,6 +70,11 @@ impl SearchContext<'_> {
                 score += self.continuations[1][pos.pos.side][m.piece][m.to as usize][prev.piece]
                     [prev.to as usize];
             }
+            if ply > 2 {
+                let prev = self.move_stack[ply as usize - 3];
+                score += self.continuations[2][pos.pos.side][m.piece][m.to as usize][prev.piece]
+                    [prev.to as usize];
+            }
 
             return score;
         }
