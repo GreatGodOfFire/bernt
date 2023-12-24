@@ -452,10 +452,10 @@ impl SearchContext<'_> {
                 };
 
                 if let Some(res) = res {
+                    search_pv = false;
                     if -res.1 > best.1 {
                         best.0 = m;
                         best.1 = best.1.max(-res.1);
-                        search_pv = false;
                         if -res.1 >= beta {
                             if m.flags == MoveFlag::QUIET && self.killers[ply as usize][0] != m {
                                 self.killers[ply as usize][1] = self.killers[ply as usize][0];
