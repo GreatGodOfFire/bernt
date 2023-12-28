@@ -23,6 +23,11 @@ pub const FP_MUL: i32 = 527;
 pub const TIMEMAN_HARDDIV: f32 = 3.79;
 pub const TIMEMAN_SOFTDIV: f32 = 44.61;
 
+pub const HIST_MUL: i32 = 365;
+pub const HIST_ADD: i32 = -427;
+pub const CONTHIST_MUL: i32 = 365;
+pub const CONTHIST_ADD: i32 = -427;
+
 #[rustfmt::skip]
 pub const MVVLVA_LOOKUP: [[i32; 5]; 6] = [
         /* P   N   B   R   Q */ 
