@@ -84,9 +84,11 @@ pub fn datagen() {
         let folder = folder.clone();
         let n_games = n_games.clone();
 
-        handles.push(thread::spawn(move || {
+        let builder = thread::Builder::new().stack_size(8_000_000);
+
+        handles.push(builder.spawn(move || {
             generate_games(id, n, folder, config.depth, n_games)
-        }));
+        }).unwrap());
     }
 
     handles.push(thread::spawn(move || {
@@ -159,7 +161,7 @@ fn game(depth: u8) -> Vec<PackedBoard> {
     }
 
     // prevent positions with mate
-    let mut moves = movegen::<true>(&pos);
+    let moves = movegen::<true>(&pos);
     let mut mate = true;
     for m in &moves {
         let p = pos.make_move(*m);
