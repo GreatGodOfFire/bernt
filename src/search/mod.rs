@@ -39,6 +39,7 @@ struct SearchPosition {
     mg_eval: i32,
     eg_eval: i32,
     phase: i32,
+    mobility: [i32; 2],
 }
 
 pub struct SearchResult {
@@ -78,6 +79,7 @@ pub fn search(
         mg_eval,
         eg_eval,
         phase,
+        mobility: [0; 2],
     };
 
     for depth in 1..=options.depth {
@@ -189,6 +191,7 @@ impl SearchContext<'_> {
                 mg_eval: -mg,
                 eg_eval: -eg,
                 phase,
+                mobility: pos.mobility,
             };
         }
 
@@ -301,12 +304,16 @@ impl SearchContext<'_> {
             self.repetitions.push(hash);
         }
 
+        let mobility = pos.mobility[!pos.pos.side] - pos.mobility[pos.pos.side];
+
         return SearchPosition {
             pos: pos.pos.make_move(m),
-            eval: (-mg * phase.min(24) + -eg * (24 - phase.min(24))) / 24,
+            eval: (-mg * phase.min(24) + -eg * (24 - phase.min(24))) / 24
+                + mobility.abs().max(1).checked_ilog2().unwrap() as i32 * mobility.signum(),
             mg_eval: -mg,
             eg_eval: -eg,
             phase,
+            mobility: pos.mobility,
         };
     }
 
@@ -378,7 +385,10 @@ impl SearchContext<'_> {
 
         let mut search_pv = true;
 
-        for m in self.movepicker(movegen::<true>(&pos.pos), &pos, tt_move, ply) {
+        let moves = movegen::<true>(&pos.pos);
+        let move_count = moves.len();
+
+        for m in self.movepicker(moves, &pos, tt_move, ply) {
             if !m.capture()
                 && m.promotion() == PieceType::None
                 && skip_quiets
@@ -388,7 +398,8 @@ impl SearchContext<'_> {
                 continue;
             }
 
-            let pos = self.update(pos, m, true);
+            let mut pos = self.update(pos, m, true);
+            pos.mobility[!pos.pos.side] = move_count as i32;
 
             if !pos.pos.in_check(!pos.pos.side) {
                 n_moves += 1;
